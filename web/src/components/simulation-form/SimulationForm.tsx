@@ -7,7 +7,7 @@ import { DEFAULT_PARAMS, MAX_AMOUNT, MAX_ETFS, MIN_AMOUNT, toSearchParams } from
 import { formatWon } from "@/lib/format";
 import { EtfPicker } from "@/components/etf-picker";
 import { AmountInput } from "@/components/simulation-form/AmountInput";
-import { SegmentedControl, type SegmentOption } from "@/components/simulation-form/SegmentedControl";
+import { SegmentedControl, type SegmentOption } from "@/components/ui/SegmentedControl";
 import { useResolvedEtfs } from "@/components/simulation-form/useResolvedEtfs";
 
 const PERIOD_OPTIONS: SegmentOption<Period>[] = [

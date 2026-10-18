@@ -39,3 +39,9 @@ export function toneOf(value: number): Tone {
   if (value < 0) return "loss";
   return "flat";
 }
+
+/** 문장 속 금액. 1만 원 이상은 "282만 원"처럼 어림하고, 그 아래는 원 단위 그대로. */
+export function formatWonApprox(amount: number): string {
+  const abs = Math.abs(amount);
+  return abs >= 10_000 ? `${formatWonShort(abs)} 원` : formatWon(abs);
+}

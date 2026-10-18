@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { STRATEGY_COLOR } from "@/components/result/series";
 import { Signed } from "@/components/result/Signed";
 import { STRATEGIES, STRATEGY_LABEL, type Strategy } from "@/components/result/text";
-import { SegmentedControl } from "@/components/simulation-form";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import type { SimulationResult } from "@/lib/api/types";
 import { formatDate, formatPercent, formatSignedWon } from "@/lib/format";
 

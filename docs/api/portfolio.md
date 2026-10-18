@@ -96,6 +96,7 @@ Trade = { date, instrument, side: "BUY" | "SELL", quantity, priceLocal, fxRate /
 
 - `contributions`: 그날 보유 종목별 손익(원, 환율 변동 포함), 절댓값 큰 순. 합 + 배당 − 수수료 − 세금 = `pnl`(반올림 오차 제외).
 - `prevDate`/`nextDate`: 기록이 있는 이전·다음 거래일, 없으면 null.
+- `cashFlows[].amount`: 항상 양수(원). 방향은 `type`으로 구분한다. 반면 `netCashFlow`는 부호가 있다(입금 +, 출금 −).
 
 ## GET /api/portfolio/holdings/{code}
 

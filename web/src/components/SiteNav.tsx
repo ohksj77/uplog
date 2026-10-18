@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 const LINKS = [
   { href: "/", label: "로그", match: (p: string) => p === "/" || p.startsWith("/days") || p.startsWith("/holdings") },
@@ -9,13 +10,25 @@ const LINKS = [
   { href: "/simulation", label: "시뮬레이션", match: (p: string) => p.startsWith("/simulation") },
 ];
 
+/** 현재 경로에 맞춰 메뉴를 강조한다. usePathname은 동적 경로에서 Suspense 안에 있어야 해서 SiteNav가 감싼다. */
+function ActiveNav() {
+  return <NavList pathname={usePathname()} />;
+}
+
 export function SiteNav() {
-  const pathname = usePathname();
+  return (
+    <Suspense fallback={<NavList pathname={null} />}>
+      <ActiveNav />
+    </Suspense>
+  );
+}
+
+function NavList({ pathname }: { pathname: string | null }) {
   return (
     <nav aria-label="주요 메뉴">
       <ul className="flex gap-1 text-sm">
         {LINKS.map((l) => {
-          const active = l.match(pathname);
+          const active = pathname != null && l.match(pathname);
           return (
             <li key={l.href}>
               <Link

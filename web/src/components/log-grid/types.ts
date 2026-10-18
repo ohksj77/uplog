@@ -1,3 +1,4 @@
+import type { LogLevel } from "@/components/log-grid/logic";
 import type { SimulationDay } from "@/lib/api/types";
 
 /**
@@ -18,4 +19,46 @@ export type LogGridProps = {
   selectedDate?: string | null;
   /** 여러 로그를 위아래로 맞출 때 쓰는 공통 표시 구간. days 밖의 칸은 비워 둔다. */
   range?: { from: string; to: string };
+};
+
+// ── 범용 격자(LogGridBase) ──────────────────────────────────────────────
+
+/** 툴팁 한 줄. tone이 있으면 값을 이익 초록 / 손실 빨강으로 칠한다. */
+export type LogTooltipRow = { label: string; value: string; tone?: "gain" | "loss" | "flat" };
+
+export type LogTooltip = { title: string; rows: LogTooltipRow[]; note?: string };
+
+/** 격자 칸 하나. 날짜 오름차순 배열로 넘긴다. */
+export type LogGridCell = {
+  date: string;
+  /** 칠할 단계(logColor). null이면 중립 색 */
+  level: LogLevel | null;
+  /** 기록 없는 날: 칠하지 않고 테두리만 그린다 */
+  hollow?: boolean;
+  /** 가운데 점(예: 매수일) */
+  marker?: "dot" | null;
+  /** 스크린리더 문구(툴팁과 같은 정보) */
+  label: string;
+  tooltip: LogTooltip;
+  /** false면 눌러도 onActivate를 부르지 않는다. 기본 true */
+  activatable?: boolean;
+};
+
+/** 격자 아래에 그리는 기간 표시(예: "체결 내역으로 복원"). 시각 보조이고, 같은 정보는 칸 문구에도 넣는다. */
+export type LogGridBand = { from: string; to: string; label: string };
+
+export type LogGridBaseProps = {
+  cells: readonly LogGridCell[];
+  /** 스크린리더용 격자 이름 */
+  label: string;
+  selectedDate?: string | null;
+  /** 표시 구간. cells 밖의 칸은 비워 둔다. */
+  range?: { from: string; to: string };
+  /** 칸을 누르거나 Enter/Space. 인덱스는 cells 기준 */
+  onActivate?: (index: number) => void;
+  /** 고른 날이 있을 때 Esc */
+  onClear?: () => void;
+  bands?: readonly LogGridBand[];
+  /** cells가 비었을 때 문구 */
+  emptyText?: string;
 };
