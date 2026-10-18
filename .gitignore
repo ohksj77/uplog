@@ -6,3 +6,6 @@ build/
 .vscode/
 .DS_Store
 .env
+
+# 에이전트 작업용 git worktree
+.claude/worktrees/
