@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/*
+ * 디자인 토큰. 한국 관례대로 이익 = 빨강, 손실 = 파랑.
+ * 로그 단계: 1(옅음) → 4(진함). 0은 변동 없음/데이터 없음.
+ */
+:root {
+  --background: #ffffff;
+  --surface: #f6f7f9;
+  --foreground: #191f28;
+  --muted: #6b7684;
+  --border: #e5e8eb;
+  --accent: #3182f6;
+
+  --gain: #f04452;
+  --loss: #3182f6;
+
+  --log-empty: #ebedf0;
+  --log-zero: #d9dde3;
+  --gain-1: #ffd6d9;
+  --gain-2: #ff9aa2;
+  --gain-3: #f45c68;
+  --gain-4: #c8102e;
+  --loss-1: #d3e4fd;
+  --loss-2: #8fbaf8;
+  --loss-3: #4a8ef2;
+  --loss-4: #1450b8;
+
+  --series-lump: #7c4dff;
+  --series-recurring: #0d9f7a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #101114;
+    --surface: #1b1d22;
+    --foreground: #eceef1;
+    --muted: #9aa3ae;
+    --border: #2c2f36;
+    --accent: #4c95ff;
+
+    --gain: #ff5f6b;
+    --loss: #4c95ff;
+
+    --log-empty: #1f2228;
+    --log-zero: #2c3038;
+    --gain-1: #4a1d22;
+    --gain-2: #8a2a34;
+    --gain-3: #d2404d;
+    --gain-4: #ff6b76;
+    --loss-1: #16294a;
+    --loss-2: #1f4b8f;
+    --loss-3: #3a7ae0;
+    --loss-4: #78afff;
+
+    --series-lump: #9677ff;
+    --series-recurring: #139c79;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
+  --color-series-lump: var(--series-lump);
+  --color-series-recurring: var(--series-recurring);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  font-feature-settings: "tnum";
+}
