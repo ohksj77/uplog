@@ -204,6 +204,25 @@ public class ConnectionService {
         log.info("사용자 {}가 토스 계좌를 연결했습니다(계좌 {})", userId, accountId);
     }
 
+    // ---- 키 다시 넣기
+
+    /**
+     * 연결한 계좌의 키만 바꾼다(다른 곳에서 같은 키를 써서 토큰이 끊겼거나, 키를 다시 발급했을 때).
+     * 새 키로 같은 계좌가 보여야 하고, 검증한 키만 저장한다. 저장 뒤 최근 거래일 수집을 다시 예약한다.
+     */
+    public void rekey(long userId, String clientId, String clientSecret) {
+        BrokerCredentials creds = credentials(clientId, clientSecret);
+        Account account = activeAccount(userId);
+        boolean same = verify(creds).stream().anyMatch(a -> a.accountSeq().equals(account.brokerAccountSeq()));
+        if (!same) {
+            throw new ConnectionException(ConnectionErrorCode.INVALID_PARAMETER,
+                    "이 키로는 연결한 계좌(" + account.maskedAccountNo() + ")가 보이지 않아요. 같은 토스증권 계정의 키인지 확인해 주세요.");
+        }
+        credentials.save(account.id(), creds);
+        scheduler.scheduleDailySync(account.id(), LocalDate.now(clock.withZone(KST)));
+        log.info("사용자 {}가 계좌 {}의 토스 키를 바꿨습니다", userId, account.id());
+    }
+
     // ---- 다시 수집·해제
 
     /** 직전 거래일 기준 일일 수집을 예약한다. 계좌당 {@code uplog.connection.sync-interval}에 한 번. */
@@ -290,7 +309,12 @@ public class ConnectionService {
     static ConnectionException toConnectionException(BrokerException e) {
         return switch (e.reason()) {
             case INVALID_CREDENTIALS -> new ConnectionException(ConnectionErrorCode.TOSS_INVALID_CREDENTIALS,
-                    "client_id 또는 client_secret이 올바르지 않습니다. 토스증권에서 발급받은 값을 다시 확인해 주세요.");
+                    switch (e.field() == null ? "" : e.field()) {
+                        case "clientId" -> "client_id가 맞지 않아요. WTS Open API 화면의 복사 버튼으로 다시 복사해 붙여 넣어 주세요.";
+                        case "clientSecret" -> "client_secret이 맞지 않아요. 키를 다시 발급했다면 새 client_secret을 붙여 넣어 주세요.";
+                        default -> "client_id 또는 client_secret이 올바르지 않습니다. 토스증권에서 발급받은 값을 다시 확인해 주세요.";
+                    },
+                    null, e.field());
             case IP_NOT_ALLOWED -> new ConnectionException(ConnectionErrorCode.TOSS_IP_NOT_ALLOWED,
                     "토스증권 허용 IP에 업로그 서버 IP가 등록되지 않았습니다. 허용 IP 관리에 아래 IP를 등록한 뒤 다시 시도해 주세요.");
             case NO_BROKERAGE_ACCOUNT -> new ConnectionException(ConnectionErrorCode.TOSS_NO_BROKERAGE_ACCOUNT,

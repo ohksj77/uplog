@@ -43,7 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 토큰은 OAuth2 형식)으로 결정적 데이터를 준다. {@code uplog.toss.fake-server.enabled=true}일 때만 뜬다(local 프로필).
  *
  * <ul>
- *   <li>{@code client_secret=invalid} → 401 invalid_client
+ *   <li>{@code client_secret=invalid} → 401 invalid_client("...: client_secret"), {@code client_id}가 {@code bad-id}로 시작 → ("...: client_id")
  *   <li>{@code client_id}가 {@code ip-blocked}로 시작 → 403 access_denied("IP address not allowed")
  *   <li>{@code client_id}가 {@code multi}로 시작 → 종합매매 계좌 2개, {@code no-account}로 시작 → 계좌 없음
  *   <li>클라이언트당 토큰 1개: 새로 받으면 이전 토큰은 401 token-revoked
@@ -96,8 +96,11 @@ public class FakeTossController {
         if (clientId.startsWith("ip-blocked")) {
             return oauthError(HttpStatus.FORBIDDEN, "access_denied", "IP address not allowed");
         }
+        if (clientId.startsWith("bad-id")) {
+            return oauthError(HttpStatus.UNAUTHORIZED, "invalid_client", "Client authentication failed: client_id");
+        }
         if (clientSecret.equals("invalid")) {
-            return oauthError(HttpStatus.UNAUTHORIZED, "invalid_client", "Client authentication failed.");
+            return oauthError(HttpStatus.UNAUTHORIZED, "invalid_client", "Client authentication failed: client_secret");
         }
         String token = "fake." + UUID.randomUUID();
         String previous = currentToken.put(clientId, token);

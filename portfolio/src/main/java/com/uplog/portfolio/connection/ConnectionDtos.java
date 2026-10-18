@@ -55,7 +55,15 @@ public final class ConnectionDtos {
 
     public record MeResponse(MeUser user, MeConnection connection) {}
 
-    /** 공통 오류 형식. egressIps는 TOSS_IP_NOT_ALLOWED일 때만 */
+    /** 공통 오류 형식. egressIps는 TOSS_IP_NOT_ALLOWED일 때만, field는 틀린 입력을 알 때만(clientId | clientSecret) */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record ErrorResponse(String code, String message, List<String> egressIps) {}
+    public record ErrorResponse(String code, String message, List<String> egressIps, String field) {
+
+        public ErrorResponse(String code, String message, List<String> egressIps) {
+            this(code, message, egressIps, null);
+        }
+    }
+
+    /** 연결한 계좌의 키만 바꾼다(토큰이 끊겼거나 키를 다시 발급했을 때). */
+    public record RekeyRequest(String clientId, String clientSecret) {}
 }

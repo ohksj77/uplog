@@ -11,15 +11,26 @@ public final class ConnectionException extends RuntimeException {
 
     private final ConnectionErrorCode code;
     private final transient Duration retryAfter;
+    private final String field;
 
     public ConnectionException(ConnectionErrorCode code, String message) {
         this(code, message, null);
     }
 
     public ConnectionException(ConnectionErrorCode code, String message, Duration retryAfter) {
+        this(code, message, retryAfter, null);
+    }
+
+    /** @param field 입력값 중 문제가 된 것("clientId" | "clientSecret"), 없으면 null */
+    public ConnectionException(ConnectionErrorCode code, String message, Duration retryAfter, String field) {
         super(message);
         this.code = code;
         this.retryAfter = retryAfter;
+        this.field = field;
+    }
+
+    public String field() {
+        return field;
     }
 
     public ConnectionErrorCode code() {

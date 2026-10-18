@@ -72,7 +72,7 @@ public interface CredentialReader {
 
 ## API 계약 (프론트·백엔드 A)
 
-공통 오류 형식은 기존과 같다. 새 코드: `UNAUTHENTICATED`(401), `ORIGIN_NOT_ALLOWED`(403), `TOSS_INVALID_CREDENTIALS`(400), `TOSS_IP_NOT_ALLOWED`(400, 본문 최상위에 `egressIps`), `TOSS_NO_BROKERAGE_ACCOUNT`(400), `TOSS_RATE_LIMITED`(429), `TOSS_UNAVAILABLE`(502, 검증 중 token-revoked도 여기에 "다른 곳"이 들어간 메시지로), `ALREADY_CONNECTED`(409), `SYNC_TOO_SOON`(429, `Retry-After`), `INVALID_PARAMETER`(400).
+공통 오류 형식은 기존과 같다. 새 코드: `UNAUTHENTICATED`(401), `ORIGIN_NOT_ALLOWED`(403), `TOSS_INVALID_CREDENTIALS`(400, 토스가 알려 주면 본문에 `field`: `clientId` | `clientSecret`), `TOSS_IP_NOT_ALLOWED`(400, 본문 최상위에 `egressIps`), `TOSS_NO_BROKERAGE_ACCOUNT`(400), `TOSS_RATE_LIMITED`(429), `TOSS_UNAVAILABLE`(502, 검증 중 token-revoked도 여기에 "다른 곳"이 들어간 메시지로), `ALREADY_CONNECTED`(409), `SYNC_TOO_SOON`(429, `Retry-After`), `INVALID_PARAMETER`(400).
 
 ```
 GET  /api/me
@@ -95,6 +95,9 @@ GET  /api/connections/toss
       "recentGaps": ["2026-10-12"] }
 POST /api/connections/toss/sync → 202                  // 수동 다시 수집, 계좌당 1시간에 1번(넘으면 429 SYNC_TOO_SOON)
 GET  /api/connections/toss (연결 없음) → 404 ACCOUNT_NOT_CONNECTED
+PUT  /api/connections/toss/credentials { "clientId", "clientSecret" } → 204   // 연결한 계좌의 키만 바꾸기(토큰 끊김·키 재발급). 새 키로 같은 계좌가 보여야 함
+POST /api/auth/handoff → { "token", "expiresAt" }        // 로그인 필요. 다른 기기(PC)에서 이어 하기 1회용 코드(10분)
+POST /api/auth/handoff/redeem { "token" } → { "nickname" } + 세션 쿠키 | 400 HANDOFF_INVALID
 DELETE /api/connections/toss?deleteData=false → 204    // 키는 항상 즉시 파기. deleteData=true면 계좌 기록도 삭제
 ```
 
