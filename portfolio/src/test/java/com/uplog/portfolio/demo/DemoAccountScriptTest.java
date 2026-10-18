@@ -63,7 +63,7 @@ class DemoAccountScriptTest {
         assertThat(plan.flows().getFirst().date()).isEqualTo(LocalDate.of(2024, 10, 16));
         assertThat(plan.flows().getFirst().amount()).isEqualByComparingTo("10000000");
         assertThat(plan.trades()).hasSizeGreaterThan(40);
-        assertThat(plan.dividends()).isNotEmpty();
+        assertThat(plan.dividends()).as("토스 Open API에는 배당 내역이 없어 데모도 배당을 만들지 않는다").isEmpty();
         assertThat(plan.connectedAt()).isEqualTo(LocalDate.of(2026, 7, 16));
     }
 

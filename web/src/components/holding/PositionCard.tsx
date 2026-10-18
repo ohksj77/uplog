@@ -42,10 +42,12 @@ export function PositionCard({ detail }: { detail: HoldingDetail }) {
             <Signed value={detail.realizedProfit}>{formatSignedWon(detail.realizedProfit)}</Signed>
           </dd>
         </div>
-        <div className="rounded-2xl bg-surface p-4">
-          <dt className="text-sm text-muted">받은 배당</dt>
-          <dd className="mt-1 font-semibold tabular-nums">{formatWon(detail.dividends)}</dd>
-        </div>
+        {detail.dividends > 0 && (
+          <div className="rounded-2xl bg-surface p-4">
+            <dt className="text-sm text-muted">받은 배당</dt>
+            <dd className="mt-1 font-semibold tabular-nums">{formatWon(detail.dividends)}</dd>
+          </div>
+        )}
       </dl>
     </section>
   );

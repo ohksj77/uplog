@@ -96,17 +96,38 @@ struct LogCell: View {
     let size: CGFloat
     let radius: CGFloat
     let palette: Palette
+    @Environment(\.widgetRenderingMode) private var renderingMode
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         Group {
-            if let fill = palette.fill(level) {
+            if renderingMode != .fullColor {
+                // 데스크톱 위젯은 앞에 창이 있으면 단색(vibrant)으로 그려져 색이 모두 흰색이 된다.
+                // 그때는 색 대신 모양·밝기로: 이익 = 채움(진할수록 큼), 손실 = 테두리(두꺼울수록 큼), 변동 없음 = 옅은 칸.
+                monochrome(shape)
+            } else if let fill = palette.fill(level) {
                 shape.fill(fill)
             } else {
                 shape.strokeBorder(palette.empty, lineWidth: 1)
             }
         }
         .frame(width: size, height: size)
+    }
+
+    @ViewBuilder
+    private func monochrome(_ shape: RoundedRectangle) -> some View {
+        switch level {
+        case nil:
+            shape.strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+        case let l? where l > 0:
+            shape.fill(Color.white.opacity(0.3 + 0.175 * Double(min(4, l))))
+        case let l? where l < 0:
+            let step = Double(min(4, -l))
+            shape.strokeBorder(Color.white.opacity(0.45 + 0.1375 * step),
+                               lineWidth: max(1, size * (0.08 + 0.05 * step)))
+        default:
+            shape.fill(Color.white.opacity(0.12))
+        }
     }
 }
 

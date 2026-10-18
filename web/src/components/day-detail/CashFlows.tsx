@@ -5,15 +5,15 @@ import { holdingHref } from "@/lib/routes";
 
 const LABEL = { DEPOSIT: "입금", WITHDRAWAL: "출금", DIVIDEND: "배당" } as const;
 
-/** 입금·출금·배당. 금액 부호는 종류로 정한다(출금은 −). */
+/** 입금·출금(토스 Open API에는 배당 내역이 없어 보통 배당은 오지 않는다). 금액 부호는 종류로 정한다(출금은 −). */
 export function CashFlows({ items }: { items: CashFlowItem[] }) {
   return (
     <section aria-labelledby="cash-heading" className="space-y-3">
       <h2 id="cash-heading" className="text-lg font-semibold">
-        입출금·배당
+        입출금
       </h2>
       {items.length === 0 ? (
-        <p className="rounded-2xl bg-surface px-5 py-8 text-center text-sm text-muted">이날은 입출금이나 배당이 없었어요</p>
+        <p className="rounded-2xl bg-surface px-5 py-8 text-center text-sm text-muted">이날은 입출금이 없었어요</p>
       ) : (
         <ul className="divide-y divide-border rounded-2xl bg-surface">
           {items.map((c, i) => {

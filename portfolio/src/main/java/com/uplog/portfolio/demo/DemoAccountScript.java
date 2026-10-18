@@ -70,12 +70,6 @@ public final class DemoAccountScript {
             buy(480, "SMPC", 1_000_000), sellAll(500, "SMPC"),
             sellPart(505, "S00003", 0.2));
 
-    /** 분기 배당 수익률(세전)과 세후 비율. */
-    private static final Map<String, double[]> DIVIDENDS = Map.of(
-            "S00001", new double[] {0.005, 0.846},
-            "S00003", new double[] {0.004, 0.846},
-            "SMPS", new double[] {0.0033, 0.85});
-
     /**
      * @param closes 종목코드 → 현지 종가(샘플 8종)
      * @param end 마지막 시세일
@@ -108,9 +102,6 @@ public final class DemoAccountScript {
             if (monthStarts.contains(i - 5) && (month == 9 || month == 18)) {
                 st.withdraw(day, month == 9 ? 2_000_000 : 1_500_000);
             }
-            if (isDividendDay(days, i)) {
-                DIVIDENDS.forEach((code, d) -> st.dividend(day, code, d[0], d[1]));
-            }
             List<Action> today = new ArrayList<>(script.getOrDefault(i, List.of()));
             if (monthStarts.contains(i)) {
                 today.add(buy(i, "S00003", 500_000));
@@ -129,13 +120,6 @@ public final class DemoAccountScript {
         }
         return new Plan(connectedAt, List.copyOf(st.trades), List.copyOf(st.flows), List.copyOf(st.dividends),
                 gaps.reversed());
-    }
-
-    private static boolean isDividendDay(List<LocalDate> days, int i) {
-        LocalDate d = days.get(i);
-        boolean quarterMonth = d.getMonthValue() % 3 == 1;
-        return quarterMonth && d.getDayOfMonth() >= 20 && (i == 0 || days.get(i - 1).getDayOfMonth() < 20
-                || days.get(i - 1).getMonthValue() != d.getMonthValue());
     }
 
     private static Action buy(int day, String code, long budget) {
@@ -185,20 +169,6 @@ public final class DemoAccountScript {
             if (possible > 0) {
                 flows.add(new AccountFlow(day, AccountFlow.Type.WITHDRAWAL, BigDecimal.valueOf(possible)));
                 cash = cash.subtract(BigDecimal.valueOf(possible));
-                eventDays.add(day);
-            }
-        }
-
-        void dividend(LocalDate day, String code, double yield, double afterTax) {
-            long qty = quantities.getOrDefault(code, 0L);
-            if (qty == 0) {
-                return;
-            }
-            BigDecimal value = closes.get(code).closeOn(day).multiply(BigDecimal.valueOf(qty)).multiply(fx(code, day));
-            BigDecimal amount = value.multiply(BigDecimal.valueOf(yield * afterTax)).setScale(0, RoundingMode.DOWN);
-            if (amount.signum() > 0) {
-                dividends.add(new Dividend(day, code, amount));
-                cash = cash.add(amount);
                 eventDays.add(day);
             }
         }

@@ -17,7 +17,7 @@ public final class DesktopErrors {
     public record ErrorResponse(String code, String message) {}
 
     public static final String DESKTOP_LOCKED = "DESKTOP_LOCKED";
-    static final String LOCKED_MESSAGE = "업로그 앱에서 열어 주세요. 앱을 다시 열면 이어서 쓸 수 있어요.";
+    static final String LOCKED_MESSAGE = "UpLog 앱에서 열어 주세요. 앱을 다시 열면 이어서 쓸 수 있어요.";
 
     private DesktopErrors() {}
 

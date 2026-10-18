@@ -93,7 +93,7 @@ class DesktopSecurityTest {
             mvc.perform(at(get(url)))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code", is("DESKTOP_LOCKED")))
-                    .andExpect(jsonPath("$.message", is("업로그 앱에서 열어 주세요. 앱을 다시 열면 이어서 쓸 수 있어요.")));
+                    .andExpect(jsonPath("$.message", is("UpLog 앱에서 열어 주세요. 앱을 다시 열면 이어서 쓸 수 있어요.")));
         }
         mvc.perform(at(get("/api/me")).cookie(new Cookie("uplog_desktop", TOKEN.substring(1))))
                 .andExpect(status().isForbidden())

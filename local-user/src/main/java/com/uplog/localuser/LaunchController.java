@@ -41,7 +41,7 @@ public class LaunchController {
         if (!ok && !(properties.devOpen() && !this.token.configured())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .cacheControl(CacheControl.noStore())
-                    .body(new ErrorResponse(DesktopErrors.DESKTOP_LOCKED, "실행 토큰이 맞지 않아요. 업로그 앱을 다시 열어 주세요."));
+                    .body(new ErrorResponse(DesktopErrors.DESKTOP_LOCKED, "실행 토큰이 맞지 않아요. UpLog 앱을 다시 열어 주세요."));
         }
         ResponseEntity.BodyBuilder redirect = ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create("/"))

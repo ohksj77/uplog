@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
   title: "손익 폭포수 | UpLog",
-  description: "기간 손익을 종목별·배당·수수료·세금·환율 기여로 쌓아 내려가며 보여줘요.",
+  description: "기간 손익을 종목별·수수료·세금·환율 기여로 쌓아 내려가며 보여줘요.",
 };
 
 // 기간 선택은 URL 쿼리에 있어 본문은 클라이언트에서 그린다.
