@@ -198,3 +198,61 @@ export type UnderwaterInsight = {
   }[];
   current: { drawdown: number; peak: IsoDate; days: number; deepestPast: number; deeperThanPast: boolean };
 };
+
+export type MonthlyInsight = {
+  years: {
+    year: number;
+    /** 항상 1–12월 12개. 기록 없는 달은 null */
+    months: { month: number; return: number | null; pnl: number | null; netCashFlow: number | null }[];
+    total: { return: number; pnl: number };
+  }[];
+  best: { year: number; month: number; return: number } | null;
+  worst: { year: number; month: number; return: number } | null;
+  positiveMonths: number;
+  negativeMonths: number;
+};
+
+export type HoldingSideStats = { count: number; avgDays: number; medianDays: number; avgReturn: number };
+
+export type HabitsVerdict = "HOLD_LOSERS" | "CUT_LOSSES" | "BALANCED" | "INSUFFICIENT";
+
+export type HabitsInsight = {
+  holding: { winners: HoldingSideStats; losers: HoldingSideStats; ratio: number | null; verdict: HabitsVerdict };
+  averagingDown: {
+    buys: number;
+    shareOfBuys: number;
+    positions: number;
+    positionsWon: number;
+    items: {
+      date: IsoDate;
+      instrument: Instrument;
+      priceLocal: number;
+      avgCostLocal: number;
+      belowAvg: number;
+      positionId: string;
+      positionReturn: number;
+    }[];
+  };
+  /** "YYYY-MM", 빠짐없이 */
+  activity: { month: string; buys: number; sells: number; turnover: number }[];
+};
+
+export type DividendsInsight = {
+  months: { month: string; amount: number; items: { date: IsoDate; instrument: Instrument; amount: number }[] }[];
+  byYear: { year: number; amount: number }[];
+  byInstrument: { instrument: Instrument; amount: number; count: number }[];
+  total: number;
+  trailing12m: number;
+  trailingYield: number;
+};
+
+export type CostsInsight = {
+  year: number;
+  availableYears: number[];
+  total: { fee: number; tax: number; cost: number };
+  allTime: { fee: number; tax: number; cost: number };
+  profitBeforeCost: number;
+  costShare: number | null;
+  months: { month: string; fee: number; tax: number }[];
+  byInstrument: { instrument: Instrument; fee: number; tax: number; trades: number }[];
+};

@@ -30,6 +30,10 @@ Trade = { date, instrument, side: "BUY" | "SELL", quantity, priceLocal, fxRate /
 | 4. 보유 기간 타임라인 | `GET /api/portfolio/insights/holding-periods` |
 | 5. 수익 분해 | `GET /api/portfolio/insights/fx` |
 | 6. 수중 차트 | `GET /api/portfolio/insights/underwater` |
+| 7. 월별 성적표 | `GET /api/portfolio/insights/monthly` |
+| 8. 매매 습관 | `GET /api/portfolio/insights/habits` |
+| 9. 배당 흐름 | `GET /api/portfolio/insights/dividends` |
+| 10. 숨은 비용 | `GET /api/portfolio/insights/costs` |
 
 ## 계산 정의
 
@@ -228,3 +232,92 @@ FxItem = { "instrument": { … }, "quantity": 12, "avgCostLocal": 182.4, "avgFxR
 - `drawdown`: TWR 지수의 직전 고점 대비(0 이하). `drawdownAmount`: 평가손익(평가금 − 순입금)의 직전 고점 대비(원, 0 이하). 화면은 simulation의 고통 지표처럼 수익률/금액 기준을 고를 수 있다.
 - `episodes`: drawdown이 0 아래로 내려갔다가 0으로 돌아온(또는 아직 못 돌아온) 구간, 깊은 순. `days*`는 달력일.
 - `current`: 지금 고점 아래면 그 구간, 고점이면 `drawdown: 0, peak: 그날, days: 0`. `deepestPast`는 현재 구간을 뺀 과거 구간 중 가장 깊은 값(없으면 0).
+
+## 7. GET /api/portfolio/insights/monthly
+
+어느 달에 벌고 잃었나. 연 × 월 표.
+
+```json
+{
+  "years": [
+    { "year": 2026,
+      "months": [ { "month": 1, "return": 0.0213, "pnl": 512000, "netCashFlow": 1000000 }, … 12개 ],
+      "total": { "return": 0.0912, "pnl": 3058778 } }
+  ],
+  "best":  { "year": 2025, "month": 11, "return": 0.0712 },
+  "worst": { "year": 2025, "month": 4, "return": -0.0631 },
+  "positiveMonths": 14, "negativeMonths": 10
+}
+```
+
+- `years`: 오래된 해부터. `months`는 항상 1–12월 12개. 기록이 없는 달은 `return`·`pnl`·`netCashFlow` 모두 `null`.
+- 월 `return` = 그달 일별 수익률의 곱 − 1(TWR). `pnl` = 그달 하루 손익 합. 첫 기록 달과 마지막 달은 기록이 있는 날만으로 계산한다.
+- `total.return` = 그해 TWR, `total.pnl` = 그해 손익 합(log의 `stats.totalPnl`과 같다).
+- `positiveMonths`/`negativeMonths`: 기록이 있는 달 중 return > 0 / < 0.
+
+## 8. GET /api/portfolio/insights/habits
+
+수익은 빨리 팔고 손실은 오래 버티나(처분 효과), 물타기는 어땠나, 얼마나 자주 사고파나.
+
+```json
+{
+  "holding": {
+    "winners": { "count": 9, "avgDays": 41, "medianDays": 22, "avgReturn": 0.084 },
+    "losers":  { "count": 6, "avgDays": 97, "medianDays": 64, "avgReturn": -0.071 },
+    "ratio": 2.37,
+    "verdict": "HOLD_LOSERS"
+  },
+  "averagingDown": { "buys": 7, "shareOfBuys": 0.12, "positions": 4, "positionsWon": 1,
+                     "items": [ { "date": "2025-04-07", "instrument": { … }, "priceLocal": 61200, "avgCostLocal": 70300,
+                                  "belowAvg": -0.129, "positionId": "p-5", "positionReturn": -0.044 } ] },
+  "activity": [ { "month": "2026-03", "buys": 4, "sells": 2, "turnover": 0.08 } ]
+}
+```
+
+- `holding`: **끝난** 포지션(라운드트립)만. 이익(returnRate > 0)과 손실(≤ 0)로 나눠 보유 일수(달력일)와 평균 수익률.
+  - `ratio` = losers.avgDays / winners.avgDays(winners가 0개면 null).
+  - `verdict`: 어느 쪽이든 2개 미만이면 `INSUFFICIENT`, ratio ≥ 1.5면 `HOLD_LOSERS`(손실을 더 오래 버팀), ratio ≤ 1/1.5면 `CUT_LOSSES`(손실을 빨리 자름), 그 사이는 `BALANCED`.
+- `averagingDown`(물타기): 이미 보유 중인 종목을 그 순간 평균 매수가보다 낮은 가격에 추가 매수한 체결.
+  - `buys`: 물타기 체결 수, `shareOfBuys`: 전체 매수 체결 중 비율, `positions`: 물타기가 한 번이라도 있었던 포지션 수, `positionsWon`: 그중 포지션 수익률 > 0인 수.
+  - `items`: 물타기 체결, 최신 순. `belowAvg` = 체결가 / 직전 평균 매수가 − 1(음수). `positionReturn` = 그 포지션의 수익률(보유 중이면 현재 평가 기준).
+- `activity`: 첫 기록 달부터 마지막 달까지 빠짐없이, 월별 매수·매도 체결 수와 회전율(그달 매도 금액 / 그달 평균 평가금).
+
+## 9. GET /api/portfolio/insights/dividends
+
+매달 배당이 얼마 들어오나.
+
+```json
+{
+  "months": [ { "month": "2026-03", "amount": 82000,
+                "items": [ { "date": "2026-03-28", "instrument": { … }, "amount": 82000 } ] } ],
+  "byYear": [ { "year": 2026, "amount": 217954 } ],
+  "byInstrument": [ { "instrument": { … }, "amount": 410000, "count": 8 } ],
+  "total": 520000,
+  "trailing12m": 290000,
+  "trailingYield": 0.0084
+}
+```
+
+- `months`: 첫 기록 달부터 마지막 달까지 빠짐없이(배당 없는 달은 amount 0, items []), 오래된 순. 금액은 세후 원화.
+- `byYear` 오래된 순, `byInstrument` 금액 큰 순.
+- `trailing12m`: 마지막 날 기준 최근 12개월 합. `trailingYield` = trailing12m / 마지막 날 총 평가금액.
+
+## 10. GET /api/portfolio/insights/costs?year=2026
+
+올해 비용으로 얼마 나갔나. `year` 생략 시 마지막 기록 연도.
+
+```json
+{
+  "year": 2026, "availableYears": [2024, 2025, 2026],
+  "total": { "fee": 33325, "tax": 10272, "cost": 43597 },
+  "allTime": { "fee": 61000, "tax": 25000, "cost": 86000 },
+  "profitBeforeCost": 3102375,
+  "costShare": 0.0141,
+  "months": [ { "month": "2026-01", "fee": 3200, "tax": 0 } ],
+  "byInstrument": [ { "instrument": { … }, "fee": 12000, "tax": 8000, "trades": 9 } ]
+}
+```
+
+- 비용 = 체결 수수료 + 세금(매도 거래세 등). 환전 스프레드는 아직 데이터가 없어 포함하지 않는다.
+- `profitBeforeCost` = 그해 손익 합 + 그해 비용. `costShare` = cost / profitBeforeCost(profitBeforeCost ≤ 0이면 null).
+- `months`: 그해 1–12월 중 기록이 있는 달, 오래된 순. `byInstrument`: 그해 체결이 있었던 종목, 비용 큰 순.

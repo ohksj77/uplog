@@ -1,6 +1,10 @@
 import { get, USE_MOCK } from "@/lib/api/client";
 import type {
   BenchmarkCode,
+  CostsInsight,
+  DividendsInsight,
+  HabitsInsight,
+  MonthlyInsight,
   FxInsight,
   Holding,
   HoldingDetail,
@@ -18,6 +22,8 @@ import type {
 import * as home from "@/lib/api/mock/portfolio/home";
 import * as holdings from "@/lib/api/mock/portfolio/holdings";
 import * as market from "@/lib/api/mock/portfolio/market";
+import * as habits from "@/lib/api/mock/portfolio/habits";
+import * as income from "@/lib/api/mock/portfolio/income";
 
 // 기능 B API (docs/api/portfolio.md). mock은 화면 영역별 파일에 나눠 둔다.
 
@@ -79,4 +85,24 @@ export function getWaterfallInsight(period: WaterfallPeriod, signal?: AbortSigna
 export function getUnderwaterInsight(signal?: AbortSignal): Promise<UnderwaterInsight> {
   if (USE_MOCK) return mock(() => market.mockUnderwater());
   return get("/api/portfolio/insights/underwater", signal);
+}
+
+export function getMonthlyInsight(signal?: AbortSignal): Promise<MonthlyInsight> {
+  if (USE_MOCK) return mock(() => habits.mockMonthly());
+  return get("/api/portfolio/insights/monthly", signal);
+}
+
+export function getHabitsInsight(signal?: AbortSignal): Promise<HabitsInsight> {
+  if (USE_MOCK) return mock(() => habits.mockHabits());
+  return get("/api/portfolio/insights/habits", signal);
+}
+
+export function getDividendsInsight(signal?: AbortSignal): Promise<DividendsInsight> {
+  if (USE_MOCK) return mock(() => income.mockDividends());
+  return get("/api/portfolio/insights/dividends", signal);
+}
+
+export function getCostsInsight(year: number | null, signal?: AbortSignal): Promise<CostsInsight> {
+  if (USE_MOCK) return mock(() => income.mockCosts(year));
+  return get(`/api/portfolio/insights/costs${year ? `?year=${year}` : ""}`, signal);
 }

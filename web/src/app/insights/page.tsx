@@ -10,6 +10,10 @@ const INSIGHTS = [
   { href: "/insights/holding-periods", title: "보유 기간 타임라인", question: "단타와 장투 중 뭘 잘하나" },
   { href: "/insights/fx", title: "수익 분해", question: "이 수익은 종목 덕인가 환율 덕인가" },
   { href: "/insights/underwater", title: "수중 차트", question: "지금 하락은 전에 버틴 것보다 큰가" },
+  { href: "/insights/monthly", title: "월별 성적표", question: "어느 달에 벌고 어느 달에 잃었나" },
+  { href: "/insights/habits", title: "매매 습관", question: "수익은 빨리 팔고 손실은 오래 버티나" },
+  { href: "/insights/dividends", title: "배당 흐름", question: "매달 배당이 얼마 들어오나" },
+  { href: "/insights/costs", title: "숨은 비용", question: "올해 비용으로 얼마 나갔나" },
 ] as const;
 
 export default function InsightsPage() {
