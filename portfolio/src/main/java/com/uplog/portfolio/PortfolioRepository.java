@@ -6,6 +6,8 @@ import com.uplog.calc.portfolio.Dividend;
 import com.uplog.calc.portfolio.Execution;
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +15,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,8 +27,18 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class PortfolioRepository {
 
-    /** @param connectedAt 수집을 시작한 날 */
-    public record Account(long id, String name, String broker, boolean sample, LocalDate connectedAt) {}
+    /** ACTIVE: 연결돼 수집 중, DISCONNECTED: 연결 해제(키 파기, 기록은 남김) */
+    public enum AccountStatus { ACTIVE, DISCONNECTED }
+
+    /**
+     * @param connectedAt 수집을 시작한 날
+     * @param userId 주인. 데모 계좌는 null
+     * @param brokerAccountSeq 토스 X-Tossinvest-Account 값. 데모 계좌는 null
+     * @param maskedAccountNo 화면용 가린 계좌번호. 데모 계좌는 null
+     */
+    public record Account(
+            long id, String name, String broker, boolean sample, LocalDate connectedAt, Long userId, String brokerAccountSeq,
+            String maskedAccountNo, AccountStatus status) {}
 
     /** account_day 한 행. */
     public record AccountDayRow(
@@ -39,13 +53,103 @@ public class PortfolioRepository {
         this.jdbc = JdbcClient.create(jdbcTemplate);
     }
 
-    /** 로그인 전이라 가장 먼저 만든 계좌가 "현재 계좌"다. */
-    public Optional<Account> currentAccount() {
-        return jdbc.sql("SELECT id, name, broker, sample, connected_at FROM account ORDER BY id LIMIT 1")
-                .query((rs, n) -> new Account(
-                        rs.getLong("id"), rs.getString("name"), rs.getString("broker"), rs.getBoolean("sample"),
-                        rs.getDate("connected_at").toLocalDate()))
+    private static final String ACCOUNT_COLUMNS =
+            "id, name, broker, sample, connected_at, user_id, broker_account_seq, masked_account_no, status";
+
+    private static Account account(ResultSet rs) throws SQLException {
+        long userId = rs.getLong("user_id");
+        return new Account(
+                rs.getLong("id"), rs.getString("name"), rs.getString("broker"), rs.getBoolean("sample"),
+                rs.getDate("connected_at").toLocalDate(), rs.wasNull() ? null : userId, rs.getString("broker_account_seq"),
+                rs.getString("masked_account_no"), AccountStatus.valueOf(rs.getString("status")));
+    }
+
+    /** 비로그인 방문자가 보는 데모 계좌(주인 없는 sample 계좌 중 가장 먼저 만든 것). */
+    public Optional<Account> demoAccount() {
+        return jdbc.sql("SELECT " + ACCOUNT_COLUMNS + " FROM account WHERE sample = TRUE AND user_id IS NULL ORDER BY id LIMIT 1")
+                .query((rs, n) -> account(rs))
                 .optional();
+    }
+
+    /** 사용자의 ACTIVE 계좌(사용자당 하나). */
+    public Optional<Account> activeAccountOf(long userId) {
+        return jdbc.sql("SELECT " + ACCOUNT_COLUMNS + " FROM account WHERE user_id = :userId AND status = 'ACTIVE' ORDER BY id LIMIT 1")
+                .param("userId", userId)
+                .query((rs, n) -> account(rs))
+                .optional();
+    }
+
+    /** 사용자의 가장 최근 계좌(상태 무관). */
+    public Optional<Account> latestAccountOf(long userId) {
+        return jdbc.sql("SELECT " + ACCOUNT_COLUMNS + " FROM account WHERE user_id = :userId ORDER BY id DESC LIMIT 1")
+                .param("userId", userId)
+                .query((rs, n) -> account(rs))
+                .optional();
+    }
+
+    /** 사용자의 연결 해제된 계좌 중 같은 증권사 계좌(다시 연결할 때 기록을 이어 쓴다). */
+    public Optional<Account> disconnectedAccountOf(long userId, String brokerAccountSeq) {
+        return jdbc.sql("SELECT " + ACCOUNT_COLUMNS + """
+                         FROM account
+                        WHERE user_id = :userId AND broker_account_seq = :seq AND status = 'DISCONNECTED'
+                        ORDER BY id DESC LIMIT 1
+                        """)
+                .param("userId", userId)
+                .param("seq", brokerAccountSeq)
+                .query((rs, n) -> account(rs))
+                .optional();
+    }
+
+    public Optional<Account> findAccount(long accountId) {
+        return jdbc.sql("SELECT " + ACCOUNT_COLUMNS + " FROM account WHERE id = :id")
+                .param("id", accountId)
+                .query((rs, n) -> account(rs))
+                .optional();
+    }
+
+    /** 사용자 행을 잠가 같은 사용자의 연결 요청을 줄 세운다(사용자당 ACTIVE 계좌 하나를 지키려고). */
+    public void lockUser(long userId) {
+        jdbc.sql("SELECT id FROM app_user WHERE id = :userId FOR UPDATE").param("userId", userId).query(Long.class).optional();
+    }
+
+    /** 연결한 토스 계좌를 만든다. */
+    @Transactional
+    public long insertConnectedAccount(long userId, String brokerAccountSeq, String maskedAccountNo, LocalDate connectedAt) {
+        KeyHolder key = new GeneratedKeyHolder();
+        jdbc.sql("""
+                        INSERT INTO account (name, broker, sample, connected_at, user_id, broker_account_seq, masked_account_no, status)
+                        VALUES (:name, 'TOSS', FALSE, :connectedAt, :userId, :seq, :masked, 'ACTIVE')
+                        """)
+                .param("name", "토스증권 계좌")
+                .param("connectedAt", Date.valueOf(connectedAt))
+                .param("userId", userId)
+                .param("seq", brokerAccountSeq)
+                .param("masked", maskedAccountNo)
+                .update(key, "id");
+        return key.getKeyAs(Long.class);
+    }
+
+    public void updateStatus(long accountId, AccountStatus status) {
+        jdbc.sql("UPDATE account SET status = :status WHERE id = :id")
+                .param("status", status.name())
+                .param("id", accountId)
+                .update();
+    }
+
+    public void updateMaskedAccountNo(long accountId, String maskedAccountNo) {
+        jdbc.sql("UPDATE account SET masked_account_no = :masked WHERE id = :id")
+                .param("masked", maskedAccountNo)
+                .param("id", accountId)
+                .update();
+    }
+
+    /** 계좌의 원시·파생 기록과 계좌 행을 지운다(이 모듈의 테이블만. 다른 모듈은 {@code AccountDataPurger}). */
+    @Transactional
+    public void deleteAccountData(long accountId) {
+        for (String table : new String[] {"account_day", "collection_gap", "dividend", "cash_flow", "trade"}) {
+            jdbc.sql("DELETE FROM " + table + " WHERE account_id = :id").param("id", accountId).update();
+        }
+        jdbc.sql("DELETE FROM account WHERE id = :id").param("id", accountId).update();
     }
 
     @Transactional

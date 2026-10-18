@@ -9,6 +9,8 @@ dependencies {
     implementation(project(":market-data"))
     implementation(project(":simulation"))
     implementation(project(":portfolio"))
+    implementation(project(":user-auth"))
+    implementation(project(":credential"))
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")

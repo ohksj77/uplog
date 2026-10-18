@@ -31,6 +31,7 @@ import com.uplog.marketdata.Instrument;
 import com.uplog.marketdata.ListedInstrument;
 import com.uplog.marketdata.MarketDataRepository;
 import com.uplog.marketdata.PriceDataVersion;
+import com.uplog.portfolio.PortfolioRepository.Account;
 import com.uplog.portfolio.api.PortfolioDtos.AccountDto;
 import com.uplog.portfolio.api.PortfolioDtos.ActivityDto;
 import com.uplog.portfolio.api.PortfolioDtos.AveragingDownDto;
@@ -129,7 +130,7 @@ public class PortfolioService {
     private final PortfolioDataVersion accountVersion;
     private final PriceDataVersion priceVersion;
     private final Cache<CacheKey, PortfolioSnapshot> cache = Caffeine.newBuilder()
-            .maximumSize(16)
+            .maximumSize(64)
             .expireAfterWrite(Duration.ofHours(12))
             .build();
 
@@ -146,15 +147,12 @@ public class PortfolioService {
 
     // ---- 계산 묶음
 
-    PortfolioSnapshot snapshot() {
-        PortfolioRepository.Account account = repository.currentAccount()
-                .orElseThrow(() -> new PortfolioException(
-                        PortfolioErrorCode.ACCOUNT_NOT_CONNECTED, "연결된 계좌가 없습니다. 증권 계좌를 먼저 연결해 주세요."));
+    PortfolioSnapshot snapshot(Account account) {
         CacheKey key = new CacheKey(account.id(), accountVersion.current(), priceVersion.current());
         return cache.get(key, k -> load(account));
     }
 
-    private PortfolioSnapshot load(PortfolioRepository.Account account) {
+    private PortfolioSnapshot load(Account account) {
         List<Execution> trades = repository.trades(account.id());
         List<AccountFlow> flows = repository.cashFlows(account.id());
         List<Dividend> dividends = repository.dividends(account.id());
@@ -182,25 +180,24 @@ public class PortfolioService {
                 repository.gaps(account.id()));
     }
 
-    /** 원시 데이터가 바뀐 뒤(수집·시드) 부른다. 캐시를 무효화하고 account_day를 다시 쓴다. */
-    public void refresh() {
+    /** 이 계좌의 원시 데이터가 바뀐 뒤(수집·시드) 부른다. 캐시를 무효화하고 account_day를 다시 쓴다. */
+    public void refresh(long accountId) {
         accountVersion.bump();
-        if (repository.currentAccount().isEmpty()) {
-            return;
-        }
-        PortfolioSnapshot s = snapshot();
+        Account account = repository.findAccount(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("계좌가 없습니다: " + accountId));
+        PortfolioSnapshot s = snapshot(account);
         List<PortfolioRepository.AccountDayRow> rows = s.log().stream()
                 .map(e -> new PortfolioRepository.AccountDayRow(e.date(), s.sources().get(e.date()),
                         e.value().setScale(2, RoundingMode.HALF_UP), e.netCashFlow().setScale(2, RoundingMode.HALF_UP),
                         e.pnl().setScale(2, RoundingMode.HALF_UP), e.dailyReturn(), e.twrIndex()))
                 .toList();
-        repository.replaceAccountDays(s.account().id(), rows, CALC_VERSION);
+        repository.replaceAccountDays(accountId, rows, CALC_VERSION);
     }
 
     // ---- 메인
 
-    public SummaryResponse summary() {
-        PortfolioSnapshot s = snapshot();
+    public SummaryResponse summary(Account account) {
+        PortfolioSnapshot s = snapshot(account);
         AccountLog.Entry last = s.lastObserved();
         long total = won(last.value());
         long deposits = won(last.netDeposits());
@@ -210,8 +207,8 @@ public class PortfolioService {
                 rate(last.dailyReturn()));
     }
 
-    public LogResponse log(String rawYear) {
-        PortfolioSnapshot s = snapshot();
+    public LogResponse log(Account account, String rawYear) {
+        PortfolioSnapshot s = snapshot(account);
         List<Integer> years = years(s);
         Integer parsed = PortfolioParams.year(rawYear, years);
         int year = parsed == null ? s.lastDate().getYear() : parsed;
@@ -253,8 +250,8 @@ public class PortfolioService {
                 new LogStreaks(streaks(Streaks.gains(signs)), streaks(Streaks.losses(signs))));
     }
 
-    public List<HoldingDto> holdings() {
-        PortfolioSnapshot s = snapshot();
+    public List<HoldingDto> holdings(Account account) {
+        PortfolioSnapshot s = snapshot(account);
         PortfolioDay last = s.history().last();
         return last.instruments().values().stream()
                 .filter(d -> d.position().isOpen())
@@ -269,8 +266,8 @@ public class PortfolioService {
                 .toList();
     }
 
-    public DayResponse day(LocalDate date) {
-        PortfolioSnapshot s = snapshot();
+    public DayResponse day(Account account, LocalDate date) {
+        PortfolioSnapshot s = snapshot(account);
         List<AccountLog.Entry> observed = s.observed();
         int i = 0;
         while (i < observed.size() && !observed.get(i).date().equals(date)) {
@@ -294,8 +291,8 @@ public class PortfolioService {
                 contributions, e.executions().stream().map(t -> trade(s, t)).toList(), cashFlows);
     }
 
-    public HoldingDetailResponse holding(String code) {
-        PortfolioSnapshot s = snapshot();
+    public HoldingDetailResponse holding(Account account, String code) {
+        PortfolioSnapshot s = snapshot(account);
         List<Execution> trades = s.trades().stream().filter(t -> t.instrument().equals(code)).toList();
         if (trades.isEmpty()) {
             throw new PortfolioException(PortfolioErrorCode.INSTRUMENT_NOT_FOUND, "이 종목의 보유 이력이 없습니다: " + code);
@@ -326,8 +323,8 @@ public class PortfolioService {
 
     // ---- 인사이트
 
-    public SalesResponse sales(int horizon) {
-        PortfolioSnapshot s = snapshot();
+    public SalesResponse sales(Account account, int horizon) {
+        PortfolioSnapshot s = snapshot(account);
         List<SaleShadow.Judged> judged = judge(s, horizon);
         SaleShadow.Summary summary = SaleShadow.summarize(judged);
         return new SalesResponse(horizon,
@@ -336,8 +333,8 @@ public class PortfolioService {
                 sales(s, horizon));
     }
 
-    public ShadowResponse shadow(String benchmark) {
-        PortfolioSnapshot s = snapshot();
+    public ShadowResponse shadow(Account account, String benchmark) {
+        PortfolioSnapshot s = snapshot(account);
         Instrument index = marketData.findByCode(benchmark).map(ListedInstrument::instrument)
                 .orElseThrow(() -> new PortfolioException(
                         PortfolioErrorCode.INSTRUMENT_NOT_FOUND, "벤치마크 시세가 없습니다: " + benchmark));
@@ -375,8 +372,8 @@ public class PortfolioService {
                 rate(s.lastObserved().twrIndex() - 1.0), rate(shadowTwr)));
     }
 
-    public WaterfallResponse waterfall(String period) {
-        PortfolioSnapshot s = snapshot();
+    public WaterfallResponse waterfall(Account account, String period) {
+        PortfolioSnapshot s = snapshot(account);
         LocalDate to = s.lastObserved().date();
         LocalDate anchor = switch (period) {
             case "1M" -> to.minusMonths(1);
@@ -402,8 +399,8 @@ public class PortfolioService {
         return new WaterfallResponse(period, r.from(), r.to(), r.startValue(), r.netCashFlow(), r.endValue(), items, r.total());
     }
 
-    public HoldingPeriodsResponse holdingPeriods() {
-        PortfolioSnapshot s = snapshot();
+    public HoldingPeriodsResponse holdingPeriods(Account account) {
+        PortfolioSnapshot s = snapshot(account);
         List<HoldingPeriodDto> periods = periods(s);
         List<BucketDto> buckets = new ArrayList<>();
         for (HoldingPeriods.Bucket bucket : HoldingPeriods.Bucket.values()) {
@@ -417,15 +414,15 @@ public class PortfolioService {
         return new HoldingPeriodsResponse(periods, buckets);
     }
 
-    public FxResponse fx() {
-        PortfolioSnapshot s = snapshot();
+    public FxResponse fx(Account account) {
+        PortfolioSnapshot s = snapshot(account);
         FxDecomposition.Result r = FxDecomposition.of(s.history().last(), s.currencies());
         return new FxResponse(s.lastDate(), r.items().stream().map(i -> fxItem(s, i)).toList(),
                 new FxTotal(r.total().priceEffect(), r.total().fxEffect(), r.total().profit()));
     }
 
-    public UnderwaterResponse underwater() {
-        Underwater.Result r = Underwater.of(snapshot().observed());
+    public UnderwaterResponse underwater(Account account) {
+        Underwater.Result r = Underwater.of(snapshot(account).observed());
         return new UnderwaterResponse(
                 r.series().stream().map(p -> new UnderwaterPoint(p.date(), rate(p.drawdown()), won(p.drawdownAmount()))).toList(),
                 r.episodes().stream()
@@ -436,8 +433,8 @@ public class PortfolioService {
                         rate(r.current().deepestPast()), r.current().deeperThanPast()));
     }
 
-    public MonthlyResponse monthly() {
-        MonthlyReturns.Result r = MonthlyReturns.of(snapshot().log());
+    public MonthlyResponse monthly(Account account) {
+        MonthlyReturns.Result r = MonthlyReturns.of(snapshot(account).log());
         List<MonthlyYear> years = r.years().stream()
                 .map(y -> new MonthlyYear(y.year(),
                         y.months().stream()
@@ -451,8 +448,8 @@ public class PortfolioService {
                 r.worst().map(PortfolioService::monthRef).orElse(null), r.positiveMonths(), r.negativeMonths());
     }
 
-    public HabitsResponse habits() {
-        PortfolioSnapshot s = snapshot();
+    public HabitsResponse habits(Account account) {
+        PortfolioSnapshot s = snapshot(account);
         TradingHabits.Holding h = TradingHabits.holding(s.periods());
         TradingHabits.AveragingDown a = TradingHabits.averagingDown(s.history(), s.periods());
         List<AveragingDownItem> items = a.items().stream()
@@ -469,8 +466,8 @@ public class PortfolioService {
                         .toList());
     }
 
-    public DividendsResponse dividends() {
-        PortfolioSnapshot s = snapshot();
+    public DividendsResponse dividends(Account account) {
+        PortfolioSnapshot s = snapshot(account);
         DividendIncome.Result r = DividendIncome.of(s.history(), s.lastObserved().value());
         return new DividendsResponse(
                 r.months().stream()
@@ -485,8 +482,8 @@ public class PortfolioService {
                 r.total(), r.trailing12m(), rate(r.trailingYield()));
     }
 
-    public CostsResponse costs(String rawYear) {
-        PortfolioSnapshot s = snapshot();
+    public CostsResponse costs(Account account, String rawYear) {
+        PortfolioSnapshot s = snapshot(account);
         List<Integer> years = years(s);
         Integer parsed = PortfolioParams.year(rawYear, years);
         TradingCosts.Result r = TradingCosts.of(s.log(), parsed == null ? s.lastDate().getYear() : parsed);

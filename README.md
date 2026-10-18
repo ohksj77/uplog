@@ -30,7 +30,26 @@ docker compose up -d                 # postgres:17, uplog/uplog@localhost:5432/u
 ./gradlew :app:bootRun               # 기본 프로필 api
 ```
 
-접속 정보는 환경변수 `UPLOG_DB_URL`, `UPLOG_DB_USERNAME`, `UPLOG_DB_PASSWORD`로 바꾼다. 스키마는 시작할 때 Flyway가 만든다(각 모듈의 `src/main/resources/db/migration`: `market-data` V1–V99, `portfolio` V100–).
+접속 정보는 환경변수 `UPLOG_DB_URL`, `UPLOG_DB_USERNAME`, `UPLOG_DB_PASSWORD`로 바꾼다. 스키마는 시작할 때 Flyway가 만든다(각 모듈의 `src/main/resources/db/migration`: `market-data` V1–V99, `portfolio` V100–, `user-auth` V200–, `credential` V300–).
+
+### 로그인·계좌 연결 설정(환경변수)
+
+| 변수 | 내용 |
+|---|---|
+| `UPLOG_SESSION_SECRET` | 세션 JWT(HS256) 서명 키, 32바이트 이상. 없으면 `local`은 고정 개발 키, 그 밖에는 실행마다 무작위 키(재시작하면 로그아웃) |
+| `UPLOG_SECURE_COOKIE` | `true`면 세션 쿠키에 Secure(운영 HTTPS) |
+| `UPLOG_ALLOWED_ORIGINS` | POST·DELETE를 받아 줄 웹 출처(쉼표로 구분, 기본 `http://localhost:3000`). Origin 검사로 CSRF를 막는다 |
+| `UPLOG_KAKAO_CLIENT_ID`, `UPLOG_KAKAO_CLIENT_SECRET` | 둘 다 있을 때만 카카오 로그인(`/oauth2/authorization/kakao`)이 켜진다 |
+| `UPLOG_KAKAO_REDIRECT_URI` | 카카오 콘솔에 등록한 Redirect URI(기본 `{baseUrl}/login/oauth2/code/kakao`, `X-Forwarded-*` 반영) |
+| `UPLOG_MASTER_KEY` | 증권사 키 암호화 마스터키(base64, 32바이트, 예: `openssl rand -base64 32`). 없으면 `local`은 고정 개발 키(경고), 그 밖에는 계좌 연결이 실패한다 |
+| `UPLOG_EGRESS_IPS` | 토스를 호출하는 서버의 고정 IP(쉼표로 구분). 연결 안내에 보여 준다(`local` 기본 `127.0.0.1`) |
+
+`local` 프로필에서는 `POST /api/auth/dev-login {"nickname":"개발자"}`로 로그인한다(다른 프로필에는 없다). 상태를 바꾸는 요청에 세션 쿠키를 실어 보낼 때는 `Origin` 헤더가 필요하다:
+
+```bash
+curl -c jar -H 'Origin: http://localhost:3000' -H 'Content-Type: application/json' -d '{"nickname":"개발자"}' localhost:8080/api/auth/dev-login
+curl -b jar localhost:8080/api/me
+```
 
 국내 ETF 실제 시세 수집(공공데이터포털 금융위원회_증권상품시세정보)은 `UPLOG_PUBLIC_DATA_SERVICE_KEY`(인증키, Decoding 값)를 넣었을 때만 켜진다. 평일 14:30(KST)에 최근 7일치를 다시 받아 덮어쓴다. 응답 형식은 아직 실제 API로 검증하지 않았다.
 
@@ -40,7 +59,9 @@ docker compose up -d                 # postgres:17, uplog/uplog@localhost:5432/u
 | `calc-engine` | TWR, 벤치마크 리플레이, 시뮬레이션, 계좌 리플레이·포지션·매도 채점·손익 폭포수·환율 분해·수중 구간 (순수 자바) |
 | `market-data` | `instrument`·`daily_price`·`fx_rate` 테이블, 시세 조회, 공공데이터 수집 잡, 로컬 샘플 시드 |
 | `simulation` | `GET /api/simulations`, `GET /api/etfs`, 결과 캐시(Caffeine) |
-| `portfolio` | `GET /api/portfolio/**`(기능 B), 계좌 원시 테이블·`account_day`, `BrokerPort`, 로컬 데모 계좌, 계산 캐시(Caffeine) |
+| `portfolio` | `GET /api/portfolio/**`(기능 B, 비로그인 = 데모 계좌), 계좌 원시 테이블·`account_day`, `BrokerPort`, 로컬 데모 계좌, 계산 캐시(Caffeine), `/api/me`·`/api/connections/toss/**` |
+| `user-auth` | 사용자·세션(JWT 쿠키), 카카오 로그인, `local` 개발용 로그인, Spring Security |
+| `credential` | 증권사 키 봉투 암호화 보관(AES-256-GCM, 마스터키) |
 | `app` | Spring Boot 진입점, 프로필 `api`(기본) / `batch` / `local` |
 
 ## 프론트엔드
