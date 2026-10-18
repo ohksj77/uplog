@@ -58,6 +58,8 @@ curl -H 'Origin: http://localhost:3000' -H 'Content-Type: application/json' \
 - 수집: 엔진이 켜져 있으면 매일 07:00(KST) 직전 거래일을 수집하고, 엔진이 뜰 때·30분마다 놓친 날을 따라잡는다.
 - 테스트·빌드: `./gradlew build` (경고도 오류로 본다: `-Xlint:all -Werror`). 테스트는 `desktop`(+`fake-toss`) 프로필에 메모리 DB를 쓴다.
 - 앱용 엔진: `./gradlew :app:bootJar` → `app/build/libs/app-0.1.0-SNAPSHOT.jar`.
+- 맥 위젯 "UpLog 로그"(`widget/`, SwiftUI·WidgetKit): `widget/build.sh` → `widget/build/UplogWidget.appex`, 시험은 `widget/test-host.sh`.
+  엔진이 `{data-dir}/widget/widget.json`을 쓰고 위젯이 읽는다([desktop-app.md "위젯"](docs/design/desktop-app.md)).
 
 ### 맥 앱 빌드 (개발자)
 

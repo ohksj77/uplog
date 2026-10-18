@@ -104,9 +104,72 @@ runtime/bin/java -jar engine.jar \
 
 **화면(web)**: `next build`가 `out/`에 정적 export를 만든다(`output: "export"`, 개발 중 rewrites는 `next dev`에서만). 동적 경로는 쿼리로(`/days?date=`, `/holdings?code=`). 로그인·이어 하기(`/login`, `/continue`)와 사용자 메뉴는 없앤다.
 
+## 위젯 ("UpLog 로그")
+
+맥 바탕화면·알림 센터 위젯(WidgetKit). 소스는 `widget/`(SwiftUI), Xcode 없이 `swiftc`로 빌드한다. 서버·네트워크 없이 **엔진이 쓴 파일 하나**만 읽는다.
+
+**데이터 경로**: Team ID가 없어 App Group을 못 쓴다. 엔진이 `{data-dir}/widget/widget.json`에 쓰고(기본 `~/Library/Application Support/uplog/widget/widget.json`),
+샌드박스 위젯은 entitlement `com.apple.security.temporary-exception.files.home-relative-path.read-only = ["/Library/Application Support/uplog/widget/"]`로 그 폴더만 읽는다.
+샌드박스 안에서는 `NSHomeDirectory()`가 컨테이너를 가리키므로 실제 홈은 `getpwuid(getuid())`로 찾는다. 파일이 없거나 못 읽으면 "UpLog 앱을 열어 주세요".
+그래서 위젯은 **기본 data-dir**에서만 데이터를 본다(개발용 임시 data-dir로 띄운 엔진은 위젯에 보이지 않는다).
+
+**언제 쓰나** (`WidgetSnapshotWriter`, portfolio 모듈 `com.uplog.portfolio.widget`): 엔진이 뜬 직후, 계좌·시세 데이터 번호(`PortfolioDataVersion`·`PriceDataVersion`)나
+날짜(KST)가 바뀐 뒤(5초마다 번호만 비교 — 수집·역산 뒤 `PortfolioService.refresh`, 연결·해제, 시세 수집이 모두 번호를 올린다), 그리고 30분마다.
+임시 파일에 쓰고 rename해서 위젯이 반쯤 쓴 파일을 보지 않는다. 계좌가 아직 만드는 중(`ACCOUNT_NOT_READY`)이거나 없으면 이전 파일을 그대로 둔다.
+`uplog.widget.enabled=false`면 쓰지 않는다. 키·토큰·계좌번호는 넣지 않는다.
+
+**계좌**: 로컬 사용자의 ACTIVE 계좌, 없으면 데모 계좌. `sample`은 계좌의 sample 값(데모 계좌·가짜 토스 계좌는 true).
+
+**형식** (`version: 1`):
+
+```jsonc
+{
+  "version": 1,
+  "generatedAt": "2026-10-18T10:21:07.418Z",   // 쓴 시각(UTC)
+  "asOf": "2026-10-16",                        // 마지막으로 기록한 거래일(MISSING 제외). 기록이 없으면 null
+  "accountName": "데모 계좌",
+  "sample": true,
+  "today": { "pnl": 200491, "return": 0.005811 },   // asOf 하루의 손익(원)·수익률(소수). 기록이 없으면 null
+  "month": { "pnl": -557040, "gainDays": 3, "lossDays": 7 },     // asOf가 든 달
+  "year":  { "pnl": 3058778, "gainDays": 107, "lossDays": 98 },  // asOf가 든 해(스크린리더 "올해 n일 벌고 m일 잃었어요")
+  "streak": { "kind": "GAIN", "length": 1 },   // 마지막 기록일까지 이어진 연속. "GAIN" | "LOSS" | null(마지막 날 손익 0·기록 없음, length 0)
+  "weeks": [                                   // 26주, 오래된 순. 마지막 주 = 오늘(KST)이 든 주
+    { "start": "2026-10-12",                   // 월요일
+      "days": [                                // 월–금 5칸
+        { "date": "2026-10-12", "level": null, "pnl": null },     // 기록 없음(MISSING)·휴장·미래
+        { "date": "2026-10-13", "level": -4, "pnl": -225166 },
+        { "date": "2026-10-14", "level": 3, "pnl": 170685 }, … ] } ],
+  "thresholds": [50000, 120000, 210000]        // 진하기 경계(원)
+}
+```
+
+- **진하기(level)**: 부호 = 손익 부호, 크기 = `|pnl|`이 경계 `[a, b, c]`의 어디에 드는지(`< a` → 1, `< b` → 2, `< c` → 3, 나머지 4). 손익 0은 0. 경계는 asOf부터 1년 안에
+  기록한 날 중 손익이 0이 아닌 날의 `|pnl|` 사분위수(25·50·75%, 선형 보간)를 1만 원 이상은 만 원, 1천 원 이상은 천 원 단위로 반올림한 값 — web의
+  `quartileThresholds`·`niceWon`(log-grid/logic.ts, portfolio-home/log-cells.ts)과 같은 규칙이다(web은 그해, 위젯은 지난 1년).
+- 연속은 기록한 날만 이어서 센다(MISSING은 건너뛰고, 손익 0인 날에서 끊긴다).
+
+**화면**: 작게(최근 8주 + 오늘 손익), 중간(최근 18주 + 오늘 손익 + 이번 달 며칠 벌고/잃고), 크게(26주를 13주씩 두 줄, 월 라벨, 오늘·이번 달·연속, 범례, 기준일).
+GitHub 잔디처럼 행 = 월–금, 둥근 네모 칸. 색은 web의 토큰(`--gain-1..4` 빨강, `--loss-1..4` 파랑, `--log-zero`, 기록 없음은 `--log-empty` 테두리)을
+밝은·어두운 모드로 나눠 쓴다. 샘플 계좌면 "샘플 계좌" 배지. 타임라인은 지금 한 칸, 30분 뒤 다시 읽기. 누르면 `uplog://open`(Electron이 스킴을 등록한다).
+
+**빌드·시험**:
+
+```bash
+widget/build.sh          # → widget/build/UplogWidget.appex (dev.uplog.app.widget, arm64, macOS 14+, 샌드박스 entitlements로 ad-hoc 서명)
+widget/test-host.sh      # 작은 호스트 ~/Applications/UplogWidgetTest.app(dev.uplog.app.test, 위젯 dev.uplog.app.test.widget)에 넣어 등록·실행
+widget/test-host.sh --remove
+widget/tools/render.sh   # 위젯 화면을 PNG로(ImageRenderer, 밝은·어두운). 기본 입력 widget/tools/sample-widget.json(엔진이 데모 계좌로 쓴 스냅샷)
+pluginkit -m -p com.apple.widgetkit-extension -v | grep dev.uplog   # 등록 확인
+```
+
+**Electron 앱에 넣기**: `widget/build.sh`의 결과를 `uplog.app/Contents/PlugIns/UplogWidget.appex`로 복사한다(호스트 번들 id `dev.uplog.app`, 위젯 id는 그 접두어
+`dev.uplog.app.widget`이어야 한다). 서명은 안쪽부터: appex를 자기 entitlements로 먼저(build.sh가 이미 함), 그다음 앱. 앱을 `--deep`으로 서명하면 appex의
+entitlements가 지워지므로 쓰지 않는다(electron-builder면 appex를 서명 대상에서 빼거나 같은 entitlements를 준다). 앱은 `uplog://` 스킴을 등록하고
+(`CFBundleURLTypes`, `app.setAsDefaultProtocolClient("uplog")`), 위젯이 갤러리에 안 보이면 첫 실행 때 `lsregister -f {앱 경로}`를 한 번 부른다.
+앱은 `/Applications` 또는 `~/Applications`에 있어야 pluginkit이 등록한다.
+
 ## 다음 단계
 
-- macOS 위젯(WidgetKit, Swift): 엔진이 앱 그룹 폴더에 `widget.json`(오늘 손익, 이번 달 로그 칸, 연속 기록)을 쓰고 위젯이 읽는다. Xcode가 필요하다.
 - 아이폰: 계산·토스 클라이언트를 TypeScript 패키지로 옮겨 Expo 앱과 맥 앱이 함께 쓴다. 아이폰은 집 와이파이에 있을 때 수집하고, 위젯은 마지막 기록을 보여 준다.
 - 배포: Apple Developer ID 서명 + hardened runtime(JVM 엔타이틀먼트) + 공증(`notarytool`). 그전까지는 Gatekeeper "그래도 열기"가 필요하다.
 - 자동 업데이트 없음(새 dmg로 덮어 설치). 서명 뒤 electron-updater 등을 검토한다.

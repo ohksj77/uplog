@@ -274,6 +274,16 @@ public class PortfolioService {
                 new LogStreaks(streaks(Streaks.gains(signs)), streaks(Streaks.losses(signs))));
     }
 
+    /** from 이후(포함) 로그 칸 전부, 날짜 오름차순. 해를 넘는 구간이 필요한 쪽(데스크톱 위젯)이 쓴다. */
+    public List<LogDay> logSince(Account account, LocalDate from) {
+        PortfolioSnapshot s = snapshot(account);
+        return s.log().stream()
+                .filter(e -> !e.date().isBefore(from))
+                .map(e -> new LogDay(e.date(), won(e.value()), won(e.netCashFlow()), won(e.pnl()), rate(e.dailyReturn()),
+                        s.sources().get(e.date()).name()))
+                .toList();
+    }
+
     public List<HoldingDto> holdings(Account account) {
         PortfolioSnapshot s = snapshot(account);
         PortfolioDay last = s.history().last();
