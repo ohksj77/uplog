@@ -53,8 +53,10 @@ public class ConnectionService {
     private static final Logger log = LoggerFactory.getLogger(ConnectionService.class);
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final List<String> NOTES = List.of(
-            "토스증권 웹(WTS) > 설정 > Open API에서 client_id와 client_secret을 발급받으세요.",
-            "같은 화면의 허용 IP 관리에 아래 IP를 모두 등록해야 연결할 수 있어요.",
+            "PC에서 tossinvest.com에 로그인한 뒤, 오른쪽 아래 톱니바퀴(설정) > 왼쪽 메뉴 Open API에서 키를 발급받으세요.",
+            "client_secret(tssk_live_…)은 발급할 때 한 번만 보여요. 바로 복사해 두고, 잃어버렸으면 재발급해야 해요.",
+            "같은 화면의 허용 IP 관리 > IP 추가로 아래 IP를 모두 등록해야 연결할 수 있어요(이미 있는 IP는 그대로 두세요).",
+            "키는 발급 1년 뒤 만료돼요. 만료 전에 재발급하고 '키 다시 넣기'를 해 주세요.",
             "이 키는 주문 권한도 가지고 있어요. 업로그는 조회 API만 호출하고, 키는 암호화해 보관하며 연결을 해제하면 바로 파기해요.",
             "같은 키를 다른 도구에서 함께 쓰면 서로 토큰을 끊어서 수집이 실패할 수 있어요. 업로그 전용 키를 발급받아 주세요.");
 

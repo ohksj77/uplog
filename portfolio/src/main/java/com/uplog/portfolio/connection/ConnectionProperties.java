@@ -15,6 +15,6 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  */
 @ConfigurationProperties("uplog.connection")
 public record ConnectionProperties(
-        @DefaultValue("https://tossinvest.com") URI keyPageUrl,
+        @DefaultValue("https://www.tossinvest.com/") URI keyPageUrl,
         @DefaultValue("1h") Duration syncInterval,
         @DefaultValue("false") boolean simulated) {}
