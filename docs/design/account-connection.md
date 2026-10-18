@@ -72,7 +72,7 @@ public interface CredentialReader {
 
 ## API 계약 (프론트·백엔드 A)
 
-공통 오류 형식은 기존과 같다. 새 코드: `UNAUTHENTICATED`(401), `TOSS_INVALID_CREDENTIALS`(400), `TOSS_IP_NOT_ALLOWED`(400, 본문에 `egressIps`), `TOSS_NO_BROKERAGE_ACCOUNT`(400), `TOSS_RATE_LIMITED`(429), `TOSS_UNAVAILABLE`(502), `ALREADY_CONNECTED`(409).
+공통 오류 형식은 기존과 같다. 새 코드: `UNAUTHENTICATED`(401), `ORIGIN_NOT_ALLOWED`(403), `TOSS_INVALID_CREDENTIALS`(400), `TOSS_IP_NOT_ALLOWED`(400, 본문 최상위에 `egressIps`), `TOSS_NO_BROKERAGE_ACCOUNT`(400), `TOSS_RATE_LIMITED`(429), `TOSS_UNAVAILABLE`(502, 검증 중 token-revoked도 여기에 "다른 곳"이 들어간 메시지로), `ALREADY_CONNECTED`(409), `SYNC_TOO_SOON`(429, `Retry-After`), `INVALID_PARAMETER`(400).
 
 ```
 GET  /api/me
@@ -84,22 +84,24 @@ POST /api/auth/logout                                  // 쿠키 삭제
 GET  /oauth2/authorization/kakao                       // 카카오 로그인 시작 (env에 키가 있을 때만)
 GET  /api/auth/providers → { "kakao": true, "dev": true }
 
-GET  /api/connections/toss/setup → { "egressIps": ["203.0.113.10"], "keyPageUrl": "https://…", "notes": [...] }
+GET  /api/connections/toss/setup → { "egressIps": ["203.0.113.10"], "keyPageUrl": "https://…", "notes": [...] }   // 로그인 필요
 POST /api/connections/toss { "clientId": "…", "clientSecret": "…" }
   → 200 { "status": "CHOOSE_ACCOUNT", "accounts": [ { "accountSeq": "1", "maskedAccountNo": "…", "type": "BROKERAGE" } ] }
   → 201 { "status": "BACKFILLING" }                   // 종합매매 계좌가 하나면 바로 연결
 POST /api/connections/toss/account { "clientId", "clientSecret", "accountSeq" } → 201 { "status": "BACKFILLING" }
 GET  /api/connections/toss
-  → { "status": "BACKFILLING" | "ACTIVE" | "ERROR", "maskedAccountNo", "connectedAt",
+  → { "status": "BACKFILLING" | "ACTIVE" | "ERROR", "maskedAccountNo", "connectedAt" /* YYYY-MM-DD */,
       "backfill": { "state": "RUNNING", "progress": 0.42 }, "lastSyncedAt", "lastError": null | "…",
       "recentGaps": ["2026-10-12"] }
-POST /api/connections/toss/sync → 202                  // 수동 다시 수집, 계좌당 1시간에 1번(넘으면 429)
+POST /api/connections/toss/sync → 202                  // 수동 다시 수집, 계좌당 1시간에 1번(넘으면 429 SYNC_TOO_SOON)
+GET  /api/connections/toss (연결 없음) → 404 ACCOUNT_NOT_CONNECTED
 DELETE /api/connections/toss?deleteData=false → 204    // 키는 항상 즉시 파기. deleteData=true면 계좌 기록도 삭제
 ```
 
 - 키는 요청 본문으로만 받고 로그·오류 메시지·응답에 절대 남기지 않는다. 검증에 실패한 키는 저장하지 않는다.
 - `/api/portfolio/**`는 요청자의 계좌를 쓴다(비로그인 = 데모, `account.sample = true`).
-- 세션 쿠키: `uplog_session`, HttpOnly, SameSite=Lax, Secure(운영), 14일. 상태를 바꾸는 POST/DELETE는 `Origin` 헤더 검사로 CSRF를 막는다.
+- 세션 쿠키: `uplog_session`, HttpOnly, SameSite=Lax, Secure(운영), 14일. 상태를 바꾸는 POST/DELETE는 `Origin` 헤더 검사로 CSRF를 막는다(허용 출처: `uplog.auth.allowed-origins` / `UPLOG_ALLOWED_ORIGINS`).
+- `GET /api/me`는 비로그인에도 200(`user: null`, `connection.status: "NONE"`).
 - Next rewrites에 `/oauth2/**`, `/login/oauth2/**`를 추가해 같은 출처로 OAuth 왕복을 처리한다.
 
 ## 수집 규칙 (백엔드 B)

@@ -26,17 +26,21 @@ export function BackfillProgress({ connection, label = "과거 기록 만드는 
   );
 }
 
-/** "2026-10-18T07:03:00Z" → "10월 18일 오후 4:03" (올해가 아니면 연도 포함) */
+/**
+ * "2026-10-18T07:03:00Z" → "10월 18일 오후 4:03", 날짜만 오면("2026-10-18") → "10월 18일".
+ * 올해가 아니면 연도를 붙인다.
+ */
 export function formatDateTime(iso: string | null): string {
   if (!iso) return "아직 없어요";
-  const d = new Date(iso);
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  // 날짜만 온 값은 UTC 자정으로 읽히면 하루가 밀릴 수 있어 현지 자정으로 만든다.
+  const d = dateOnly ? new Date(`${iso}T00:00:00`) : new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   const sameYear = d.getFullYear() === new Date().getFullYear();
   return d.toLocaleString("ko-KR", {
     year: sameYear ? undefined : "numeric",
     month: "long",
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+    ...(dateOnly ? {} : { hour: "numeric", minute: "2-digit" }),
   });
 }

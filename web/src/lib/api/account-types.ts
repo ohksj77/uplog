@@ -54,7 +54,7 @@ export type BackfillState = "PENDING" | "RUNNING" | "DONE" | "FAILED";
 export type TossConnection = {
   status: Exclude<ConnectionStatus, "NONE">;
   maskedAccountNo: string | null;
-  connectedAt: string | null; // ISO-8601 Instant
+  connectedAt: string | null; // YYYY-MM-DD (연결한 날)
   backfill: { state: BackfillState; progress: number } | null; // progress 0–1
   lastSyncedAt: string | null;
   lastError: string | null;
