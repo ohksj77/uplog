@@ -15,7 +15,7 @@ const INSIGHTS: { key: InsightKey; title: string; question: string }[] = [
   { key: "underwater", title: "수중 차트", question: "지금 하락은 전에 버틴 것보다 큰가" },
   { key: "monthly", title: "월별 성적표", question: "어느 달에 벌고 어느 달에 잃었나" },
   { key: "habits", title: "매매 습관", question: "수익은 빨리 팔고 손실은 오래 버티나" },
-  { key: "dividends", title: "배당 흐름", question: "매달 배당이 얼마 들어오나" },
+  { key: "allocation", title: "자산 구성 변화", question: "내 돈이 시기별로 어디에 몰려 있었나" },
   { key: "costs", title: "숨은 비용", question: "올해 비용으로 얼마 나갔나" },
 ];
 

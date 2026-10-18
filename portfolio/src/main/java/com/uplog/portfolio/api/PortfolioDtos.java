@@ -172,23 +172,21 @@ public final class PortfolioDtos {
 
     public record HabitsResponse(HoldingHabit holding, AveragingDownDto averagingDown, List<ActivityDto> activity) {}
 
-    // 9. GET /api/portfolio/insights/dividends
+    // 9. GET /api/portfolio/insights/allocation
 
-    public record DividendItem(LocalDate date, InstrumentDto instrument, long amount) {}
+    /** @param kind INSTRUMENT | OTHER | CASH, market은 종목만 KR | US */
+    public record AllocationGroup(String key, String label, String kind, String market) {}
 
-    public record DividendMonth(String month, long amount, List<DividendItem> items) {}
+    public record AllocationPoint(LocalDate date, long total, List<Long> values, long kr, long us, long cash) {}
 
-    public record DividendYear(int year, long amount) {}
+    public record AllocationShare(String key, long value, double weight) {}
 
-    public record DividendByInstrument(InstrumentDto instrument, long amount, int count) {}
+    public record AllocationPeak(String key, String label, double weight, LocalDate date) {}
 
-    /**
-     * @param available 이 계좌의 배당 내역을 알 수 있는지. 토스 Open API는 배당 내역을 주지 않아 연결한 계좌는 false
-     * @param note available이 false일 때 화면에 보여 줄 이유
-     */
-    public record DividendsResponse(
-            List<DividendMonth> months, List<DividendYear> byYear, List<DividendByInstrument> byInstrument, long total,
-            long trailing12m, double trailingYield, boolean available, String note) {}
+    /** @param peak 보유한 적이 없으면 null */
+    public record AllocationResponse(
+            LocalDate asOf, List<AllocationGroup> groups, List<AllocationPoint> points, List<AllocationShare> current,
+            AllocationPeak peak) {}
 
     // GET /api/portfolio/insights/availability
 

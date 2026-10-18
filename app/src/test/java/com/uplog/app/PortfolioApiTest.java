@@ -529,69 +529,42 @@ class PortfolioApiTest {
     }
 
     @Test
-    void 배당_흐름은_달이_빠짐없고_월_연_종목별_합이_총액과_같다() throws Exception {
-        JsonNode r = fetch("/api/portfolio/insights/dividends");
-        assertKeys(r, "months", "byYear", "byInstrument", "total", "trailing12m", "trailingYield", "available", "note");
-        // 데모 계좌는 배당 기록이 있어 알 수 있다(연결한 토스 계좌는 API가 배당을 주지 않아 false)
-        assertThat(r.get("available").asBoolean()).isTrue();
-        assertThat(r.get("note").isNull()).isTrue();
-        assertIntegral(r, "total", "trailing12m");
-        long total = r.get("total").asLong();
-        assertThat(total).isPositive();
+    void 자산_구성은_그룹_순서대로_값을_주고_합이_총평가금과_같다() throws Exception {
+        JsonNode r = fetch("/api/portfolio/insights/allocation");
+        assertKeys(r, "asOf", "groups", "points", "current", "peak");
 
-        JsonNode account = fetch("/api/portfolio/summary").get("account");
-        YearMonth month = YearMonth.parse(account.get("firstDate").asString().substring(0, 7));
-        long sum = 0;
-        for (JsonNode m : r.get("months")) {
-            assertKeys(m, "month", "amount", "items");
-            assertThat(m.get("month").asString()).isEqualTo(month.toString());
-            month = month.plusMonths(1);
-            long items = 0;
-            for (JsonNode i : m.get("items")) {
-                assertKeys(i, "date", "instrument", "amount");
-                assertKeys(i.get("instrument"), INSTRUMENT);
-                assertThat(i.get("date").asString()).startsWith(m.get("month").asString());
-                items += i.get("amount").asLong();
+        List<String> kinds = new ArrayList<>();
+        r.get("groups").forEach(g -> {
+            assertKeys(g, "key", "label", "kind", "market");
+            kinds.add(g.get("kind").asString());
+            assertThat(g.get("market").isNull()).isEqualTo(!g.get("kind").asString().equals("INSTRUMENT"));
+        });
+        assertThat(kinds.getLast()).isEqualTo("CASH");
+        assertThat(kinds.stream().filter("INSTRUMENT"::equals).count()).isBetween(1L, 5L);
+
+        String prev = "";
+        int groups = r.get("groups").size();
+        for (JsonNode p : r.get("points")) {
+            assertKeys(p, "date", "total", "values", "kr", "us", "cash");
+            assertThat(p.get("date").asString()).isGreaterThan(prev);
+            prev = p.get("date").asString();
+            assertThat(p.get("values").size()).isEqualTo(groups);
+            long sum = 0;
+            for (JsonNode v : p.get("values")) {
+                sum += v.asLong();
             }
-            assertThat(m.get("amount").asLong()).isEqualTo(items);
-            sum += m.get("amount").asLong();
+            // 원 단위 반올림을 그룹마다 해서 몇 원 차이는 날 수 있다
+            assertThat(sum).isCloseTo(p.get("total").asLong(), org.assertj.core.data.Offset.offset((long) groups));
+            assertThat(p.get("kr").asLong() + p.get("us").asLong() + p.get("cash").asLong())
+                    .isCloseTo(p.get("total").asLong(), org.assertj.core.data.Offset.offset(3L));
         }
-        assertThat(month.minusMonths(1).toString()).isEqualTo(account.get("lastDate").asString().substring(0, 7));
-        assertThat(sum).isEqualTo(total);
-
-        long byYear = 0;
-        int prevYear = 0;
-        for (JsonNode y : r.get("byYear")) {
-            assertKeys(y, "year", "amount");
-            assertThat(y.get("year").asInt()).isGreaterThan(prevYear);
-            prevYear = y.get("year").asInt();
-            byYear += y.get("amount").asLong();
+        assertThat(prev).isEqualTo(r.get("asOf").asString());
+        assertThat(r.get("peak").get("weight").asDouble()).isBetween(0.0, 1.0);
+        long prevValue = Long.MAX_VALUE;
+        for (JsonNode c : r.get("current")) {
+            assertThat(c.get("value").asLong()).isPositive().isLessThanOrEqualTo(prevValue);
+            prevValue = c.get("value").asLong();
         }
-        assertThat(byYear).isEqualTo(total);
-
-        long byInstrument = 0;
-        long prev = Long.MAX_VALUE;
-        for (JsonNode i : r.get("byInstrument")) {
-            assertKeys(i, "instrument", "amount", "count");
-            assertThat(i.get("amount").asLong()).isLessThanOrEqualTo(prev);
-            prev = i.get("amount").asLong();
-            assertThat(i.get("count").asInt()).isPositive();
-            byInstrument += i.get("amount").asLong();
-        }
-        assertThat(byInstrument).isEqualTo(total);
-
-        long value = fetch("/api/portfolio/summary").get("totalValue").asLong();
-        assertThat(r.get("trailing12m").asLong()).isBetween(0L, total);
-        assertThat(r.get("trailingYield").asDouble()).isCloseTo((double) r.get("trailing12m").asLong() / value,
-                within(1e-6));
-        LocalDate last = LocalDate.parse(account.get("lastDate").asString());
-        long trailing = 0;
-        for (JsonNode m : r.get("months")) {
-            for (JsonNode i : m.get("items")) {
-                trailing += LocalDate.parse(i.get("date").asString()).isAfter(last.minusMonths(12)) ? i.get("amount").asLong() : 0;
-            }
-        }
-        assertThat(r.get("trailing12m").asLong()).isEqualTo(trailing);
     }
 
     @Test
@@ -692,8 +665,8 @@ class PortfolioApiTest {
             assertThat(item.get("reason").isNull()).as(item.get("key").asString()).isEqualTo(available);
         });
         assertThat(keys).containsExactly("sales", "shadow", "waterfall", "holding-periods", "fx", "underwater", "monthly",
-                "habits", "dividends", "costs");
-        // 데모 계좌는 매도·해외 종목·배당이 모두 있어 전부 해당한다
+                "habits", "allocation", "costs");
+        // 데모 계좌는 매도·해외 종목·보유 이력이 모두 있어 전부 해당한다
         r.forEach(item -> assertThat(item.get("available").asBoolean()).as(item.get("key").asString()).isTrue());
     }
 }

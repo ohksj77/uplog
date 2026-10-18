@@ -2,7 +2,7 @@ package com.uplog.portfolio;
 
 import com.uplog.portfolio.api.PortfolioDtos.CostsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.DayResponse;
-import com.uplog.portfolio.api.PortfolioDtos.DividendsResponse;
+import com.uplog.portfolio.api.PortfolioDtos.AllocationResponse;
 import com.uplog.portfolio.api.PortfolioDtos.FxResponse;
 import com.uplog.portfolio.api.PortfolioDtos.HabitsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingDetailResponse;
@@ -111,9 +111,9 @@ public class PortfolioController {
         return service.habits(accounts.resolve(user));
     }
 
-    @GetMapping("/insights/dividends")
-    public DividendsResponse dividends(Optional<CurrentUser> user) {
-        return service.dividends(accounts.resolve(user));
+    @GetMapping("/insights/allocation")
+    public AllocationResponse allocation(Optional<CurrentUser> user) {
+        return service.allocation(accounts.resolve(user));
     }
 
     @GetMapping("/insights/availability")

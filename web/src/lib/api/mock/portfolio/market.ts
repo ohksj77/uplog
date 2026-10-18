@@ -1,5 +1,6 @@
 import type { IsoDate } from "@/lib/api/types";
 import type {
+  AllocationInsight,
   BenchmarkCode,
   InsightAvailability,
   ShadowInsight,
@@ -203,7 +204,43 @@ export function mockUnderwater(): UnderwaterInsight {
 /** 샘플 계좌는 모든 분석에 해당한다. */
 export function mockAvailability(): InsightAvailability[] {
   const keys: InsightAvailability["key"][] = [
-    "sales", "shadow", "waterfall", "holding-periods", "fx", "underwater", "monthly", "habits", "dividends", "costs",
+    "sales", "shadow", "waterfall", "holding-periods", "fx", "underwater", "monthly", "habits", "allocation", "costs",
   ];
   return keys.map((key) => ({ key, available: true, reason: null }));
+}
+
+/** 자산 구성 변화 mock: 계좌 평가금을 주마다 종목 5개 + 그 외 + 현금으로 나눈다(비중은 천천히 움직임). */
+export function mockAllocation(): AllocationInsight {
+  const top = INSTRUMENTS.slice(0, 5);
+  const rand = rng("allocation");
+  const series = accountSeries();
+  const weekly = series.filter((d, i) => i === series.length - 1 || new Date(`${d.date}T00:00:00Z`).getUTCDay() === 5);
+  let weights = [...top.map(() => 0.1 + rand() * 0.2), 0.08, 0.06];
+  const points = weekly.map((d) => {
+    weights = weights.map((w) => Math.max(0.02, w * (1 + (rand() - 0.5) * 0.2)));
+    const sum = weights.reduce((a, b) => a + b, 0);
+    const values = weights.map((w) => Math.round((d.value * w) / sum));
+    const total = values.reduce((a, b) => a + b, 0);
+    const us = top.reduce((acc, ins, k) => acc + (ins.market === "US" ? values[k] : 0), 0);
+    const cash = values[values.length - 1];
+    return { date: d.date, total, values, kr: total - us - cash, us, cash };
+  });
+  const groups: AllocationInsight["groups"] = [
+    ...top.map((i) => ({ key: i.code, label: i.name, kind: "INSTRUMENT" as const, market: i.market })),
+    { key: "OTHER", label: `그 외 ${INSTRUMENTS.length - top.length}종목`, kind: "OTHER", market: null },
+    { key: "CASH", label: "현금", kind: "CASH", market: null },
+  ];
+  const last = points[points.length - 1];
+  const current = groups
+    .map((g, k) => ({ key: g.key, value: last.values[k], weight: Math.round((last.values[k] / last.total) * 10000) / 10000 }))
+    .filter((c) => c.value > 0)
+    .sort((a, b) => b.value - a.value);
+  let peak: AllocationInsight["peak"] = null;
+  points.forEach((p) =>
+    top.forEach((ins, k) => {
+      const w = p.values[k] / p.total;
+      if (!peak || w > peak.weight) peak = { key: ins.code, label: ins.name, weight: Math.round(w * 10000) / 10000, date: p.date };
+    }),
+  );
+  return { asOf: last.date, groups, points, current, peak };
 }

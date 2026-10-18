@@ -32,7 +32,7 @@ Trade = { date, instrument, side: "BUY" | "SELL", quantity, priceLocal, fxRate /
 | 6. 수중 차트 | `GET /api/portfolio/insights/underwater` |
 | 7. 월별 성적표 | `GET /api/portfolio/insights/monthly` |
 | 8. 매매 습관 | `GET /api/portfolio/insights/habits` |
-| 9. 배당 흐름 | `GET /api/portfolio/insights/dividends` |
+| 9. 자산 구성 변화 | `GET /api/portfolio/insights/allocation` |
 | 10. 숨은 비용 | `GET /api/portfolio/insights/costs` |
 
 ## 계산 정의
@@ -284,38 +284,29 @@ FxItem = { "instrument": { … }, "quantity": 12, "avgCostLocal": 182.4, "avgFxR
   - `items`: 물타기 체결, 최신 순. `belowAvg` = 체결가 / 직전 평균 매수가 − 1(음수). `positionReturn` = 그 포지션의 수익률(보유 중이면 현재 평가 기준).
 - `activity`: 첫 기록 달부터 마지막 달까지 빠짐없이, 월별 매수·매도 체결 수와 회전율(그달 매도 금액 / 그달 평균 평가금).
 
-## 9. GET /api/portfolio/insights/dividends
+## 9. GET /api/portfolio/insights/allocation
 
-매달 배당이 얼마 들어오나.
+내 돈이 시기별로 어디에 몰려 있었나, 국내·해외 비중은 어떻게 변했나. (배당 흐름을 대신한다: 토스 Open API는 배당 내역을 주지 않는다.)
 
 ```json
 {
-  "months": [ { "month": "2026-03", "amount": 82000,
-                "items": [ { "date": "2026-03-28", "instrument": { … }, "amount": 82000 } ] } ],
-  "byYear": [ { "year": 2026, "amount": 217954 } ],
-  "byInstrument": [ { "instrument": { … }, "amount": 410000, "count": 8 } ],
-  "total": 520000,
-  "trailing12m": 290000,
-  "trailingYield": 0.0084
+  "asOf": "2026-10-16",
+  "groups": [
+    { "key": "069500", "label": "KODEX 200", "kind": "INSTRUMENT", "market": "KR" },
+    { "key": "OTHER", "label": "그 외 24종목", "kind": "OTHER", "market": null },
+    { "key": "CASH", "label": "현금", "kind": "CASH", "market": null }
+  ],
+  "points": [ { "date": "2026-01-09", "total": 24100000, "values": [ 8200000, 3100000, 1200000 ],
+                "kr": 15000000, "us": 7900000, "cash": 1200000 } ],
+  "current": [ { "key": "069500", "value": 12688540, "weight": 0.3657 } ],
+  "peak": { "key": "SMPS", "label": "Sample S&P500 ETF", "weight": 0.5123, "date": "2025-04-11" }
 }
 ```
 
-- `months`: 첫 기록 달부터 마지막 달까지 빠짐없이(배당 없는 달은 amount 0, items []), 오래된 순. 금액은 세후 원화.
-- `byYear` 오래된 순, `byInstrument` 금액 큰 순.
-- `trailing12m`: 마지막 날 기준 최근 12개월 합. `trailingYield` = trailing12m / 마지막 날 총 평가금액.
-- `available`, `note`: 토스 Open API는 배당 내역을 주지 않아서, 연결한 계좌는 배당 기록이 없으면 `available: false`와 이유(`note`)를 준다. 이때 금액은 모두 0이며 "배당 없음"이 아니라 "알 수 없음"이다.
-
-## GET /api/portfolio/insights/availability
-
-분석 화면마다 이 계좌에 해당하는지. 분석 목록이 해당하지 않는 화면을 따로 모아 이유와 함께 보여 준다.
-
-```json
-[ { "key": "sales", "available": true, "reason": null },
-  { "key": "fx", "available": false, "reason": "지금 보유한 해외 종목이 없어요." },
-  { "key": "dividends", "available": false, "reason": "토스증권 Open API는 배당 내역을 주지 않아서 …" } ]
-```
-
-- `key` 순서와 값: `sales`, `shadow`, `waterfall`, `holding-periods`, `fx`, `underwater`, `monthly`, `habits`, `dividends`, `costs`. `reason`은 `available`이 false일 때만.
+- `groups`: 기간 평균 평가금이 큰 종목 최대 5개(평가금 큰 순) → 나머지가 있으면 `OTHER` → `CASH`. `market`은 종목만 `KR`|`US`.
+- `points`: 기록이 있는 날(MISSING 제외) 중 주마다 마지막 날 + 마지막 날, 오래된 순. `values`는 `groups` 순서와 같고 합은 `total`. `kr`+`us`+`cash` = `total`. 현금이 음수인 날(역산 추정 구간)은 0으로 둔다.
+- `current`: 마지막 날의 그룹별 평가금과 비중(0인 그룹 제외, 큰 순).
+- `peak`: 한 종목이 총평가금(현금 포함)에서 가장 큰 비중을 차지했던 때(`points`의 날 기준). 보유한 적이 없으면 null.
 
 ## 10. GET /api/portfolio/insights/costs?year=2026
 

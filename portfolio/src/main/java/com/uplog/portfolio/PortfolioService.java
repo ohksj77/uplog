@@ -11,8 +11,8 @@ import com.uplog.calc.Streaks;
 import com.uplog.calc.Twr;
 import com.uplog.calc.portfolio.AccountFlow;
 import com.uplog.calc.portfolio.AccountLog;
+import com.uplog.calc.portfolio.AllocationHistory;
 import com.uplog.calc.portfolio.Dividend;
-import com.uplog.calc.portfolio.DividendIncome;
 import com.uplog.calc.portfolio.Execution;
 import com.uplog.calc.portfolio.FxConversion;
 import com.uplog.calc.portfolio.FxDecomposition;
@@ -33,6 +33,11 @@ import com.uplog.marketdata.MarketDataRepository;
 import com.uplog.marketdata.PriceDataVersion;
 import com.uplog.portfolio.PortfolioRepository.Account;
 import com.uplog.portfolio.api.PortfolioDtos.AccountDto;
+import com.uplog.portfolio.api.PortfolioDtos.AllocationShare;
+import com.uplog.portfolio.api.PortfolioDtos.AllocationResponse;
+import com.uplog.portfolio.api.PortfolioDtos.AllocationPoint;
+import com.uplog.portfolio.api.PortfolioDtos.AllocationPeak;
+import com.uplog.portfolio.api.PortfolioDtos.AllocationGroup;
 import com.uplog.portfolio.api.PortfolioDtos.ActivityDto;
 import com.uplog.portfolio.api.PortfolioDtos.AveragingDownDto;
 import com.uplog.portfolio.api.PortfolioDtos.AveragingDownItem;
@@ -48,11 +53,6 @@ import com.uplog.portfolio.api.PortfolioDtos.CostsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.CurrentDrawdown;
 import com.uplog.portfolio.api.PortfolioDtos.DayPnl;
 import com.uplog.portfolio.api.PortfolioDtos.DayResponse;
-import com.uplog.portfolio.api.PortfolioDtos.DividendByInstrument;
-import com.uplog.portfolio.api.PortfolioDtos.DividendItem;
-import com.uplog.portfolio.api.PortfolioDtos.DividendMonth;
-import com.uplog.portfolio.api.PortfolioDtos.DividendYear;
-import com.uplog.portfolio.api.PortfolioDtos.DividendsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.EpisodeDto;
 import com.uplog.portfolio.api.PortfolioDtos.FxItemDto;
 import com.uplog.portfolio.api.PortfolioDtos.FxResponse;
@@ -99,6 +99,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
@@ -494,29 +495,47 @@ public class PortfolioService {
                         .toList());
     }
 
-    public DividendsResponse dividends(Account account) {
+    public AllocationResponse allocation(Account account) {
         PortfolioSnapshot s = snapshot(account);
-        DividendIncome.Result r = DividendIncome.of(s.history(), s.lastObserved().value());
-        return new DividendsResponse(
-                r.months().stream()
-                        .map(m -> new DividendMonth(m.month().toString(), m.amount(), m.items().stream()
-                                .map(i -> new DividendItem(i.date(), instrument(s, i.instrument()), i.amount()))
-                                .toList()))
-                        .toList(),
-                r.byYear().stream().map(y -> new DividendYear(y.year(), y.amount())).toList(),
-                r.byInstrument().stream()
-                        .map(i -> new DividendByInstrument(instrument(s, i.instrument()), i.amount(), i.count()))
-                        .toList(),
-                r.total(), r.trailing12m(), rate(r.trailingYield()),
-                dividendsKnown(account), dividendsKnown(account) ? null : DIVIDENDS_UNAVAILABLE);
-    }
-
-    static final String DIVIDENDS_UNAVAILABLE =
-            "토스증권 Open API는 배당 내역을 주지 않아서, 연결한 계좌의 배당은 아직 보여 줄 수 없어요.";
-
-    /** 배당 내역을 알 수 있는 계좌인지. 데모 계좌이거나 배당 기록이 실제로 들어온 계좌만 true. */
-    boolean dividendsKnown(Account account) {
-        return isDemo(account) || !repository.dividends(account.id()).isEmpty();
+        Set<LocalDate> observed = new HashSet<>();
+        s.observed().forEach(e -> observed.add(e.date()));
+        Set<String> overseas = new HashSet<>();
+        s.instruments().forEach((code, i) -> {
+            if (i.currency() == CurrencyCode.USD) {
+                overseas.add(code);
+            }
+        });
+        AllocationHistory.Result r = AllocationHistory.of(s.history(), observed, overseas, 5);
+        int others = s.instruments().size() - (int) r.groups().stream()
+                .filter(g -> g.kind() == AllocationHistory.Kind.INSTRUMENT).count();
+        List<AllocationGroup> groups = r.groups().stream()
+                .map(g -> switch (g.kind()) {
+                    case INSTRUMENT -> new AllocationGroup(g.key(), s.instruments().get(g.key()).name(), g.kind().name(),
+                            overseas.contains(g.key()) ? "US" : "KR");
+                    case OTHER -> new AllocationGroup(g.key(), "그 외 " + others + "종목", g.kind().name(), null);
+                    case CASH -> new AllocationGroup(g.key(), "현금", g.kind().name(), null);
+                })
+                .toList();
+        List<AllocationPoint> points = r.points().stream()
+                .map(p -> new AllocationPoint(p.date(), won(p.total()), p.values().stream().map(PortfolioService::won).toList(),
+                        won(p.kr()), won(p.us()), won(p.cash())))
+                .toList();
+        List<AllocationShare> current = new ArrayList<>();
+        if (!r.points().isEmpty()) {
+            AllocationHistory.Point last = r.points().getLast();
+            for (int k = 0; k < r.groups().size(); k++) {
+                BigDecimal v = last.values().get(k);
+                if (v.signum() > 0) {
+                    current.add(new AllocationShare(r.groups().get(k).key(), won(v),
+                            rate(v.doubleValue() / last.total().doubleValue())));
+                }
+            }
+            current.sort(Comparator.comparingLong(AllocationShare::value).reversed());
+        }
+        AllocationPeak peak = r.peak() == null ? null
+                : new AllocationPeak(r.peak().key(), s.instruments().get(r.peak().key()).name(), rate(r.peak().weight()),
+                        r.peak().date());
+        return new AllocationResponse(s.lastObserved().date(), groups, points, current, peak);
     }
 
     /** 분석 화면마다 이 계좌에 해당하는지. 해당하지 않으면 이유를 준다. */
@@ -525,7 +544,7 @@ public class PortfolioService {
         HoldingPeriodsResponse periods = holdingPeriods(account);
         FxResponse fx = fx(account);
         HabitsResponse habits = habits(account);
-        DividendsResponse dividends = dividends(account);
+        AllocationResponse allocation = allocation(account);
         CostsResponse costs = costs(account, null);
         int closed = habits.holding().winners().count() + habits.holding().losers().count();
         return List.of(
@@ -537,9 +556,7 @@ public class PortfolioService {
                 availability("underwater", true, null),
                 availability("monthly", true, null),
                 availability("habits", closed > 0, "다 팔아서 끝난 포지션이 아직 없어요."),
-                dividends.available()
-                        ? availability("dividends", dividends.total() > 0, "받은 배당이 없어요.")
-                        : availability("dividends", false, DIVIDENDS_UNAVAILABLE),
+                availability("allocation", allocation.peak() != null, "보유했던 종목이 없어요."),
                 availability("costs", costs.allTime().cost() > 0, "수수료·세금이 나간 매매가 없어요."));
     }
 
