@@ -14,7 +14,7 @@ export type WtsGuideFocus = "key" | "ip";
 
 const CAPTION: Record<WtsGuideFocus, string> = {
   key: "설정 창의 Open API 메뉴. 'Open API Key 관리'에서 Client Id를 복사하고, Client Secret은 발급할 때 바로 복사해요.",
-  ip: "같은 화면 아래 '허용 IP 관리'에서 'IP 추가'를 눌러 업로그 서버 IP를 더해요.",
+  ip: "같은 화면 아래 '허용 IP 관리'에서 'IP 추가'를 눌러 이 맥의 공인 IP를 더해요.",
 };
 
 /** 단계별로 봐야 할 곳을 강조한 WTS 설정 창 그림. 그림은 장식이고, 같은 내용을 캡션 글로도 읽힌다. */

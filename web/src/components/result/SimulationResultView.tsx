@@ -16,8 +16,7 @@ import { REQUIRES_CONNECTION } from "@/lib/api/client";
 import type { SimulationParams, SimulationResponse } from "@/lib/api/types";
 import { parseSearchParams, toSearchParams } from "@/lib/simulation-params";
 
-// 결과 화면 본체. 계좌를 연결한 사용자만 URL 쿼리를 읽어 브라우저에서 시뮬레이션을 부른다.
-// (공유 링크를 비로그인·미연결 사용자가 열면 연결 안내를 보여 준다)
+// 결과 화면 본체. 계좌를 연결했으면 URL 쿼리를 읽어 시뮬레이션을 부르고, 연결 전이면 연결 안내를 보여 준다.
 export function SimulationResultView() {
   return (
     <SimulationGate fallback={<ResultSkeleton />} asPageTitle>
@@ -37,7 +36,7 @@ function ConnectedResultView() {
   }
   if (state.status === "loading") return <ResultSkeleton />;
   if (state.status === "error" && state.error.code === REQUIRES_CONNECTION) {
-    return <ConnectFirst loggedIn asPageTitle />;
+    return <ConnectFirst asPageTitle />;
   }
   if (state.status === "error") {
     return (

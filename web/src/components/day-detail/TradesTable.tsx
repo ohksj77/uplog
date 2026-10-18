@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Trade } from "@/lib/api/portfolio-types";
 import { formatLocal } from "@/components/day-detail/money";
 import { formatWon } from "@/lib/format";
+import { holdingHref } from "@/lib/routes";
 
 const SIDE = { BUY: "매수", SELL: "매도" } as const;
 
@@ -31,7 +32,7 @@ export function TradesTable({ trades }: { trades: Trade[] }) {
               {trades.map((t, i) => (
                 <tr key={`${t.instrument.code}-${t.side}-${i}`} className="border-b border-border last:border-0">
                   <th scope="row" className="px-4 py-2.5 text-left font-semibold">
-                    <Link href={`/holdings/${encodeURIComponent(t.instrument.code)}`} className="hover:underline">
+                    <Link href={holdingHref(t.instrument.code)} className="hover:underline">
                       {t.instrument.name}
                     </Link>
                   </th>

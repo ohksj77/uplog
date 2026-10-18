@@ -4,6 +4,7 @@ import { formatFx, formatLocal } from "@/components/holding/format";
 import { Signed } from "@/components/result/Signed";
 import type { FxItem } from "@/lib/api/portfolio-types";
 import { formatPercent, formatSignedWon } from "@/lib/format";
+import { holdingHref } from "@/lib/routes";
 
 // 해외 종목 하나의 수익 분해.
 
@@ -15,7 +16,7 @@ export function FxItemCard({ item, max, showInstrument = true }: { item: FxItem;
     <article className="rounded-2xl bg-surface p-4" aria-label={`${inst.name} 수익 분해`}>
       <header className="mb-3 flex items-baseline justify-between gap-3">
         {showInstrument ? (
-          <Link href={`/holdings/${inst.code}`} className="min-w-0 truncate font-semibold hover:underline">
+          <Link href={holdingHref(inst.code)} className="min-w-0 truncate font-semibold hover:underline">
             {inst.name}
           </Link>
         ) : (

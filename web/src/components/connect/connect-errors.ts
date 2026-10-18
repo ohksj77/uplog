@@ -5,8 +5,8 @@ export type KeyFormMode = "connect" | "rekey";
 export type ConnectErrorView = {
   title: string;
   body: string;
-  /** 다시 보여 줄 도움: IP 목록, 설정 링크, 로그인 링크 */
-  help?: "ip" | "settings" | "login";
+  /** 다시 보여 줄 도움: 이 맥의 공인 IP 확인, 설정 링크 */
+  help?: "ip" | "settings";
   /** 키 입력 칸 두 개에 함께 묶을 오류인가(aria-invalid). 토스가 틀린 칸을 알려 주면 KeyForm이 그 칸에만 묶는다. */
   credentialField?: boolean;
 };
@@ -22,8 +22,8 @@ export function connectErrorView(error: ApiError, mode: KeyFormMode = "connect")
       };
     case "TOSS_IP_NOT_ALLOWED":
       return {
-        title: "허용 IP에 업로그 서버가 없어요",
-        body: "토스증권이 업로그 서버의 접속을 막았어요. 토스증권 설정 > Open API > 허용 IP 관리에서 'IP 추가'로 아래 IP를 모두 추가해 주세요. 이미 등록한 다른 IP는 그대로 두어도 돼요. 반영되기까지 잠깐 걸릴 수 있어요.",
+        title: "허용 IP에 이 맥이 없어요",
+        body: "토스증권이 이 맥의 접속을 막았어요. 아래에서 이 맥의 공인 IP를 확인하고, 토스증권 웹의 설정(톱니바퀴) > Open API > 허용 IP 관리에서 'IP 추가'로 더해 주세요. 이미 등록한 다른 IP는 그대로 두어도 돼요. 반영되기까지 잠깐 걸릴 수 있어요.",
         help: "ip",
       };
     case "TOSS_NO_BROKERAGE_ACCOUNT":
@@ -53,12 +53,6 @@ export function connectErrorView(error: ApiError, mode: KeyFormMode = "connect")
         : { title: "연결하지 못했어요", body: error.message };
     case "ACCOUNT_NOT_CONNECTED":
       return { title: "연결된 계좌가 없어요", body: "키를 바꿀 계좌가 없어요. 계좌 연결부터 해 주세요.", help: "settings" };
-    case "UNAUTHENTICATED":
-      return {
-        title: "로그인이 풀렸어요",
-        body: "보안을 위해 입력한 키는 지웠어요. 다시 로그인한 뒤 이어 가 주세요.",
-        help: "login",
-      };
     default:
       return { title: mode === "rekey" ? "키를 바꾸지 못했어요" : "연결하지 못했어요", body: error.message };
   }

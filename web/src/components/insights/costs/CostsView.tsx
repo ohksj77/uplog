@@ -12,7 +12,7 @@ import { getCostsInsight } from "@/lib/api/portfolio-client";
 import type { CostsInsight } from "@/lib/api/portfolio-types";
 import { useApi } from "@/lib/use-api";
 
-/** "?year=2025" → 2025. 없거나 이상하면 null(서버 기본 = 마지막 기록 연도). */
+/** "?year=2025" → 2025. 없거나 이상하면 null(엔진 기본 = 마지막 기록 연도). */
 function parseYear(raw: string | null): number | null {
   return raw && /^\d{4}$/.test(raw) ? Number(raw) : null;
 }

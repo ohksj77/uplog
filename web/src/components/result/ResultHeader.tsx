@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { CopyLinkButton } from "@/components/result/CopyLinkButton";
 import { PERIOD_LABEL, describePlan } from "@/components/result/text";
 import type { SimulationParams } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
@@ -26,7 +25,6 @@ export function ResultHeader({ params, from, to }: ResultHeaderProps) {
         >
           조건 바꾸기
         </Link>
-        <CopyLinkButton />
       </div>
     </header>
   );

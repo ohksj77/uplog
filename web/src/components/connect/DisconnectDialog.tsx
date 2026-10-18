@@ -18,7 +18,7 @@ export function DisconnectButton({ maskedAccountNo }: { maskedAccountNo: string 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 다른 화면으로 떠나면(Activity) 열린 대화상자를 닫는다.
+  // 다른 화면으로 떠나면 열린 대화상자를 닫는다.
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
     return () => dialog?.close();
@@ -36,7 +36,7 @@ export function DisconnectButton({ maskedAccountNo }: { maskedAccountNo: string 
     try {
       await disconnectToss(deleteData);
       await refreshMe();
-      // 세션·계좌가 바뀌었으니 숨겨 둔 화면(Activity)의 이전 계좌 데이터까지 버리도록 전체 이동한다.
+      // 세션·계좌가 바뀌었으니 메모리에 남은 이전 계좌 데이터까지 버리도록 전체 이동한다.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 의도한 전체 새로고침
       window.location.assign("/");
     } catch (e) {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Holding } from "@/lib/api/portfolio-types";
 import { Signed } from "@/components/result/Signed";
 import { formatPercent, formatSignedWon, formatWon } from "@/lib/format";
+import { holdingHref } from "@/lib/routes";
 
 const weightText = (w: number) => `${(w * 100).toFixed(1)}%`;
 
@@ -15,7 +16,7 @@ export function HoldingsList({ holdings }: { holdings: Holding[] }) {
       {holdings.map((h) => (
         <li key={h.instrument.code}>
           <Link
-            href={`/holdings/${encodeURIComponent(h.instrument.code)}`}
+            href={holdingHref(h.instrument.code)}
             className="block px-4 py-3 transition-colors hover:bg-border focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
           >
             <div className="flex items-start justify-between gap-3">

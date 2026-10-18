@@ -11,12 +11,9 @@ import { AccountApiError, type CredentialField, type TossCredentials } from "@/l
 type Props = {
   busy: boolean;
   error: ApiError | null;
-  fallbackIps: string[];
   mode?: KeyFormMode;
   onBack: () => void;
   backLabel?: string;
-  /** 로그인이 풀렸을 때 돌아올 경로 */
-  loginNext?: string;
   /** 키를 넘긴다. 성공하면 null, 실패하면 그 오류(부모가 error prop으로도 내려 준다). */
   onSubmit: (credentials: TossCredentials) => Promise<ApiError | null>;
 };
@@ -34,7 +31,7 @@ const RECHECK_KEEP_MS = 10 * 60 * 1000;
  * - IP 오류 뒤 다시 확인용 키는 ref에만 두고, 성공·다른 오류·화면 이탈·10분 경과 때 지운다.
  * - 실패하거나 화면을 떠나면 secret 칸을 비운다.
  */
-export function KeyForm({ busy, error, fallbackIps, mode = "connect", onBack, backLabel = "이전", loginNext, onSubmit }: Props) {
+export function KeyForm({ busy, error, mode = "connect", onBack, backLabel = "이전", onSubmit }: Props) {
   const id = useId();
   const idRef = useRef<HTMLInputElement>(null);
   const secretRef = useRef<HTMLInputElement>(null);
@@ -90,7 +87,7 @@ export function KeyForm({ busy, error, fallbackIps, mode = "connect", onBack, ba
     setCanRecheck(true);
   }
 
-  // 화면이 숨겨지면(Activity) 비밀값, 붙여 넣기 칸, 다시 확인용 키를 지운다.
+  // 화면을 떠나면 비밀값, 붙여 넣기 칸, 다시 확인용 키를 지운다.
   useLayoutEffect(() => {
     const secret = secretRef.current;
     const paste = pasteRef.current;
@@ -300,7 +297,7 @@ export function KeyForm({ busy, error, fallbackIps, mode = "connect", onBack, ba
           client_secret
         </label>
         <p id={ids.secretHint} className="mt-1 text-xs text-muted break-keep">
-          키를 발급할 때 한 번만 보이는 값이에요. 이 브라우저에는 저장하지 않고, 확인에만 쓰고 바로 지워요.
+          키를 발급할 때 한 번만 보이는 값이에요. 연결하면 이 맥의 키체인으로 암호화해 보관하고, 이 맥 밖으로 보내지 않아요.
         </p>
         <div className="mt-2 flex gap-2">
           <input
@@ -359,9 +356,7 @@ export function KeyForm({ busy, error, fallbackIps, mode = "connect", onBack, ba
           ref={errorRef}
           id={ids.error}
           error={error}
-          fallbackIps={fallbackIps}
           mode={mode}
-          loginNext={loginNext}
           busy={busy}
           onRecheck={canRecheck && error.code === "TOSS_IP_NOT_ALLOWED" ? recheck : undefined}
         />

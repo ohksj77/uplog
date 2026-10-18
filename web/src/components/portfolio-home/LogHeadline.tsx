@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { PortfolioLog } from "@/lib/api/portfolio-types";
 import { formatDate, formatSignedWon } from "@/lib/format";
 import { Signed } from "@/components/result/Signed";
+import { dayHref } from "@/lib/routes";
 
 /** 화면의 답: 올해 며칠 벌고 며칠 잃었나 + 합계·최고·최악의 날. */
 export function LogHeadline({ log, isCurrentYear }: { log: PortfolioLog; isCurrentYear: boolean }) {
@@ -36,7 +37,7 @@ export function LogHeadline({ log, isCurrentYear }: { log: PortfolioLog; isCurre
 function DayLink({ title, date, pnl }: { title: string; date: string; pnl: number }) {
   return (
     <Link
-      href={`/days/${date}`}
+      href={dayHref(date)}
       className="block rounded-2xl bg-surface p-4 transition-colors hover:bg-border focus-visible:outline-2 focus-visible:outline-accent"
     >
       <span className="block text-xs text-muted">{title}</span>

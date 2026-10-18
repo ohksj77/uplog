@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CashFlowItem } from "@/lib/api/portfolio-types";
 import { formatWon } from "@/lib/format";
+import { holdingHref } from "@/lib/routes";
 
 const LABEL = { DEPOSIT: "입금", WITHDRAWAL: "출금", DIVIDEND: "배당" } as const;
 
@@ -24,7 +25,7 @@ export function CashFlows({ items }: { items: CashFlowItem[] }) {
                   {c.instrument && (
                     <>
                       {" · "}
-                      <Link href={`/holdings/${encodeURIComponent(c.instrument.code)}`} className="text-muted hover:text-foreground hover:underline">
+                      <Link href={holdingHref(c.instrument.code)} className="text-muted hover:text-foreground hover:underline">
                         {c.instrument.name}
                       </Link>
                     </>
