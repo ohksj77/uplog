@@ -19,7 +19,8 @@ public record SimulationQuery(
     public static final long MIN_AMOUNT = 1_000;
     public static final long MAX_AMOUNT = 1_000_000_000;
 
-    private static final Pattern CODE = Pattern.compile("[A-Z0-9]{1,12}");
+    /** 토스 종목 심볼 문자(영문·숫자·'.'·'-'), 1–12자. 국내는 6자리 코드, 미국은 티커(예: BRK.B). */
+    private static final Pattern CODE = Pattern.compile("[A-Z0-9.\\-]{1,12}");
 
     public SimulationQuery {
         etfs = List.copyOf(etfs);
@@ -54,12 +55,13 @@ public record SimulationQuery(
         for (String part : raw.split(",", -1)) {
             String code = part.strip().toUpperCase(Locale.ROOT);
             if (!CODE.matcher(code).matches()) {
-                throw SimulationException.invalid("종목코드 형식이 잘못됐습니다: '" + part.strip() + "'");
+                throw SimulationException.invalid(
+                        "종목코드 형식이 잘못됐습니다(영문·숫자·'.'·'-' 1–12자): '" + part.strip() + "'");
             }
             codes.add(code);
         }
         if (codes.size() > MAX_ETFS) {
-            throw SimulationException.invalid("ETF는 최대 " + MAX_ETFS + "개까지 비교할 수 있습니다.");
+            throw SimulationException.invalid("종목은 최대 " + MAX_ETFS + "개까지 비교할 수 있습니다.");
         }
         return List.copyOf(codes);
     }

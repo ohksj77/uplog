@@ -48,6 +48,8 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>{@code client_id}가 {@code multi}로 시작 → 종합매매 계좌 2개, {@code no-account}로 시작 → 계좌 없음
  *   <li>클라이언트당 토큰 1개: 새로 받으면 이전 토큰은 401 token-revoked
  *   <li>그룹별 한도(문서 수치 × {@code uplog.toss.fake-server.rate-limit-multiplier})와 X-RateLimit-* 헤더, 넘으면 429 + Retry-After
+ *   <li>{@code client_id}가 {@code market-blocked}로 시작 → 계좌 조회는 되고 시세·종목·환율 조회만 403 ip-not-allowed
+ *   <li>종목 목록·상세({@code /api/v1/stocks/all}, {@code /api/v1/stocks}): 계좌 종목 8개 + 목록 전용 종목 몇 개(국내·미국 ETF·주식, ETN 1개)
  * </ul>
  */
 @RestController
@@ -58,6 +60,10 @@ public class FakeTossController {
     public static final String BASE = "/__fake-toss";
 
     private static final LocalDate ACCOUNT1_START = LocalDate.of(2024, 10, 21);
+    /** {@code client_id}가 market-blocked로 시작하면 이 그룹은 403(연결 뒤 시세 조회만 막힌 키 흉내) */
+    private static final java.util.Set<RateLimitGroup> MARKET_GROUPS = java.util.Set.of(
+            RateLimitGroup.STOCK, RateLimitGroup.STOCK_ALL, RateLimitGroup.MARKET_DATA_CHART, RateLimitGroup.MARKET_INFO);
+    private static final java.util.Set<String> LISTING_MARKETS = java.util.Set.of("KOSPI", "KOSDAQ", "NYSE", "NASDAQ", "AMEX", "KR_ETC", "US_ETC");
     private static final LocalDate ACCOUNT2_START = LocalDate.of(2025, 3, 3);
 
     private record Book(FakeTossMarket market, Map<String, FakeTossBook> accounts) {}
@@ -323,6 +329,77 @@ public class FakeTossController {
         });
     }
 
+    @GetMapping("/api/v1/stocks/all")
+    public ResponseEntity<Map<String, Object>> listStocks(
+            @RequestHeader(name = "Authorization", required = false) String auth,
+            @RequestParam(required = false) String market,
+            @RequestParam(required = false, defaultValue = "ACTIVE") String status,
+            @RequestParam(required = false) String securityType,
+            @RequestParam(required = false) Boolean commonShare) {
+        return call(auth, RateLimitGroup.STOCK_ALL, null, false, (client, account) -> {
+            if (market == null || !LISTING_MARKETS.contains(market)) {
+                return apiError(HttpStatus.BAD_REQUEST, "invalid-request",
+                        "유효하지 않은 market 입니다. KOSPI, KOSDAQ, NYSE, NASDAQ, AMEX, KR_ETC, US_ETC 만 허용됩니다.");
+            }
+            List<Object> stocks = new ArrayList<>();
+            if (!status.equals("ACTIVE")) {
+                return ok(stocks);
+            }
+            FakeTossMarket.UNIVERSE.stream()
+                    .filter(s -> s.exchange().equals(market))
+                    .filter(s -> securityType == null || s.securityType().equals(securityType))
+                    .filter(s -> commonShare == null || s.commonShare() == commonShare)
+                    .sorted(java.util.Comparator.comparing(Symbol::symbol))
+                    .forEach(s -> stocks.add(obj(
+                            "symbol", s.symbol(),
+                            "name", s.name(),
+                            "securityType", s.securityType(),
+                            "isCommonShare", s.commonShare(),
+                            "isinCode", s.isin())));
+            return ok(stocks);
+        });
+    }
+
+    @GetMapping("/api/v1/stocks")
+    public ResponseEntity<Map<String, Object>> stocks(
+            @RequestHeader(name = "Authorization", required = false) String auth,
+            @RequestParam(required = false) String symbols) {
+        return call(auth, RateLimitGroup.STOCK, null, false, (client, account) -> {
+            if (symbols == null || !symbols.matches("[A-Za-z0-9.,\\-]+") || symbols.split(",").length > 200) {
+                return apiError(HttpStatus.BAD_REQUEST, "invalid-request", "symbols 형식이 올바르지 않습니다.");
+            }
+            List<Object> stocks = new ArrayList<>();
+            for (String code : symbols.split(",")) {
+                Symbol s = FakeTossMarket.BY_CODE.get(code);
+                if (s == null) {
+                    continue;
+                }
+                boolean kr = s.country().equals("KR");
+                LocalDate listDate = s.listDate() != null ? s.listDate() : LocalDate.of(kr ? 2002 : 1993, 1, 29);
+                stocks.add(obj(
+                        "symbol", s.symbol(),
+                        "name", s.name(),
+                        "englishName", s.symbol(),
+                        "isinCode", s.isin(),
+                        "market", s.exchange(),
+                        "securityType", s.securityType(),
+                        "isCommonShare", s.commonShare(),
+                        "status", "ACTIVE",
+                        "currency", s.currency(),
+                        "listDate", listDate.toString(),
+                        "delistDate", null,
+                        "sharesOutstanding", "100000000",
+                        "leverageFactor", null,
+                        "koreanMarketDetail", kr ? obj("liquidationTrading", false, "nxtSupported", true,
+                                "krxTradingSuspended", false, "nxtTradingSuspended", false) : null));
+            }
+            if (stocks.isEmpty()) {
+                return apiError(HttpStatus.NOT_FOUND, "stock-not-found", "종목을 찾을 수 없습니다.");
+            }
+            return ok(stocks);
+        });
+    }
+
     @GetMapping("/api/v1/market-calendar/{market}")
     public ResponseEntity<Map<String, Object>> marketCalendar(
             @RequestHeader(name = "Authorization", required = false) String auth,
@@ -363,6 +440,9 @@ public class FakeTossController {
         if (owner.startsWith("revoked:")) {
             return apiError(HttpStatus.UNAUTHORIZED, "token-revoked",
                     "새로 발급된 토큰으로 대체되어 더 이상 유효하지 않은 토큰입니다. 최신 토큰으로 다시 시도해 주세요.");
+        }
+        if (owner.startsWith("market-blocked") && MARKET_GROUPS.contains(group)) {
+            return apiError(HttpStatus.FORBIDDEN, "ip-not-allowed", "허용되지 않은 IP 입니다.");
         }
         HttpHeaders headers = new HttpHeaders();
         Integer retryAfter = take(owner, group, headers);

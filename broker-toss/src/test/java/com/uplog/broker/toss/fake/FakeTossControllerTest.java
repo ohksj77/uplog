@@ -179,6 +179,43 @@ class FakeTossControllerTest {
         assertThat(limited).isPositive();
     }
 
+    @Test
+    void 종목_목록과_상세는_명세의_필드로_주고_US_ETF는_ETF_또는_FOREIGN_ETF다() throws Exception {
+        String token = token("client-u", "secret");
+
+        JsonNode kospi = result("/api/v1/stocks/all?market=KOSPI", token, null);
+        assertThat(kospi).isNotEmpty();
+        java.util.List<String> symbols = new java.util.ArrayList<>();
+        for (JsonNode s : kospi) {
+            assertKeys(s, "symbol", "name", "securityType", "isCommonShare", "isinCode");
+            symbols.add(s.get("symbol").asString());
+        }
+        assertThat(symbols).isSorted().contains("005930", "069500", "102110");
+        assertThat(result("/api/v1/stocks/all?market=KOSPI&securityType=ETF", token, null))
+                .allSatisfy(s -> assertThat(s.get("securityType").asString()).isEqualTo("ETF"));
+        JsonNode amex = result("/api/v1/stocks/all?market=AMEX", token, null);
+        assertThat(amex).extracting(s -> s.get("securityType").asString()).contains("ETF", "FOREIGN_ETF");
+        assertThat(perform(get("/__fake-toss/api/v1/stocks/all?market=TSE").header("Authorization", "Bearer " + token))
+                .getStatus()).isEqualTo(400);
+
+        JsonNode details = result("/api/v1/stocks?symbols=069500,SPY,UNKNOWN", token, null);
+        assertThat(details).hasSize(2);
+        for (JsonNode d : details) {
+            assertKeys(d, "symbol", "name", "englishName", "isinCode", "market", "securityType", "isCommonShare", "status",
+                    "currency", "listDate", "delistDate", "sharesOutstanding", "leverageFactor", "koreanMarketDetail");
+            assertDecimalStrings(d, "sharesOutstanding");
+        }
+        assertThat(details.get(1).get("currency").asString()).isEqualTo("USD");
+        assertThat(perform(get("/__fake-toss/api/v1/stocks?symbols=NOPE").header("Authorization", "Bearer " + token))
+                .getStatus()).isEqualTo(404);
+
+        // 상장일 전 일봉은 없다
+        JsonNode candles = result("/api/v1/candles?symbol=NEWX&interval=1d&count=200&before=2025-06-10T00:00:00-04:00",
+                token, null);
+        assertThat(candles.get("candles")).hasSize(7);
+        assertThat(candles.get("nextBefore").isNull()).isTrue();
+    }
+
     private static void assertKeys(JsonNode node, String... keys) {
         Set<String> actual = new TreeSet<>();
         for (Iterator<String> it = node.propertyNames().iterator(); it.hasNext(); ) {

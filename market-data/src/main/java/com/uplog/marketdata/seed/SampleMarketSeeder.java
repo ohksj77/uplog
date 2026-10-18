@@ -93,7 +93,7 @@ public class SampleMarketSeeder implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        LocalDate end = SampleEtfSeeder.lastWeekday(LocalDate.now(clock));
+        LocalDate end = lastWeekday(LocalDate.now(clock));
         Map<String, List<DailyPrice>> series = generate(end);
         for (Spec spec : allSpecs()) {
             if (repository.findByCode(spec.code()).flatMap(ListedInstrument::range).isPresent()) {
@@ -108,6 +108,11 @@ public class SampleMarketSeeder implements ApplicationRunner {
         }
         version.bump();
         log.info("샘플 종목·지수 {}종과 {} 환율 시드 완료(~{})", allSpecs().size(), SAMPLE_FX_PAIR, end);
+    }
+
+    static LocalDate lastWeekday(LocalDate date) {
+        com.uplog.core.TradingCalendar calendar = WeekdayTradingCalendar.weekdaysOnly();
+        return calendar.isTradingDay(date) ? date : calendar.previous(date);
     }
 
     static List<Spec> allSpecs() {

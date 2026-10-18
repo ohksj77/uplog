@@ -1,7 +1,7 @@
 # 업로그 (uplog)
 
 일 단위 스냅샷으로 투자 기록을 로그처럼 보여 주는 서비스. 설계는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
-API 계약은 기능 A(ETF 시뮬레이션) [docs/api/simulation.md](docs/api/simulation.md), 기능 B(내 계좌 뷰) [docs/api/portfolio.md](docs/api/portfolio.md).
+API 계약은 기능 A(종목 시뮬레이션) [docs/api/simulation.md](docs/api/simulation.md), 기능 B(내 계좌 뷰) [docs/api/portfolio.md](docs/api/portfolio.md).
 
 ## 로컬 실행
 
@@ -10,20 +10,18 @@ API 계약은 기능 A(ETF 시뮬레이션) [docs/api/simulation.md](docs/api/si
 필요한 것: JDK 25. Docker는 없어도 된다.
 
 ```bash
-# H2 메모리 DB(PostgreSQL 모드) + 합성 샘플 ETF 4종(SAMPLE01–04)으로 http://localhost:8080 에 뜬다
+# H2 메모리 DB(PostgreSQL 모드) + 데모 계좌용 합성 시세로 http://localhost:8080 에 뜬다
 ./gradlew :app:bootRun --args='--spring.profiles.active=local,api'
 
-curl 'localhost:8080/api/etfs'
-curl 'localhost:8080/api/simulations?etfs=SAMPLE01,SAMPLE02&period=1Y&frequency=MONTHLY&dayOfMonth=15&amountType=PER_PURCHASE&amount=300000'
 curl 'localhost:8080/api/portfolio/summary'
 curl 'localhost:8080/api/portfolio/insights/waterfall?period=YTD'
 ```
 
-- `local` 프로필의 시세는 **실제 ETF가 아닌 합성 데이터**다(`sample: true`, 이름이 "샘플 "으로 시작). 가장 최근 평일에서 끝나는 약 4년치 평일 종가를 고정 시드 랜덤워크로 만든다. 재시작하면 DB는 비워지고 다시 시드된다.
+- 기능 A(시뮬레이션, `/api/instruments`·`/api/simulations`)는 **실제 종목만** 다루고, 시세는 요청한 사용자 자신이 연결한 토스 키로 받는다. 비로그인·미연결이면 403 `SIMULATION_REQUIRES_CONNECTION`이다. 로컬에서는 개발용 로그인 → 토스 연결(진짜 키 또는 `fake-toss`) 뒤에 쓴다.
 - 기능 B(`/api/portfolio/**`)는 `local` 프로필에서만 합성 **데모 계좌**(`sample: true`)로 뜬다: 샘플 종목 8개(S00001–S00004, SMPT·SMPC·SMPS·SMPE), 합성 지수 SPX·KOSPI200, USD/KRW 환율 약 3년치와 약 2년치 입출금·체결·배당. 로그인한 사용자는 자기 연결 계좌를 본다.
 - `local`은 **진짜 토스 Open API**에 붙는다. 토스 WTS의 허용 IP 관리에 이 컴퓨터의 공인 IP를 등록하고, 서버를 그 IP와 함께 실행한다:
   `UPLOG_EGRESS_IPS=$(curl -s https://api.ipify.org) ./gradlew :app:bootRun --args='--spring.profiles.active=local,api'`
-- 키 없이 흐름만 보려면 `fake-toss` 프로필을 **명시적으로** 켠다: `--spring.profiles.active=local,api,fake-toss`. 같은 앱에 **가짜 토스 서버**(`/__fake-toss/**`, 명세와 같은 경로·형식, 결정적 합성 데이터)가 뜨고 토스 클라이언트가 그쪽을 부른다. 이때 연결한 계좌는 "가짜 토스 계좌(개발용)" 샘플 계좌로 만들어지고, 연결 화면과 홈에 가짜 서버라는 안내가 뜬다. 진짜 키를 넣어도 진짜 토스로 가지 않으니 넣지 않는다. 개발용 로그인 뒤 아무 키(예: `clientId=dev`, `clientSecret=dev`)로 연결하면 역산·첫 일일 수집이 몇 초 안에 끝난다. 키 규칙: `clientSecret=invalid` → 잘못된 키, `clientId`가 `ip-blocked`로 시작 → IP 미등록, `multi`로 시작 → 계좌 2개, `no-account`로 시작 → 종합매매 계좌 없음.
+- 키 없이 흐름만 보려면 `fake-toss` 프로필을 **명시적으로** 켠다: `--spring.profiles.active=local,api,fake-toss`. 같은 앱에 **가짜 토스 서버**(`/__fake-toss/**`, 명세와 같은 경로·형식, 결정적 합성 데이터)가 뜨고 토스 클라이언트가 그쪽을 부른다. 이때 연결한 계좌는 "가짜 토스 계좌(개발용)" 샘플 계좌로 만들어지고, 연결 화면과 홈에 가짜 서버라는 안내가 뜬다. 진짜 키를 넣어도 진짜 토스로 가지 않으니 넣지 않는다. 개발용 로그인 뒤 아무 키(예: `clientId=dev`, `clientSecret=dev`)로 연결하면 역산·첫 일일 수집이 몇 초 안에 끝난다. 키 규칙: `clientSecret=invalid` → 잘못된 키, `clientId`가 `ip-blocked`로 시작 → IP 미등록, `multi`로 시작 → 계좌 2개, `no-account`로 시작 → 종합매매 계좌 없음, `market-blocked`로 시작 → 연결은 되고 시세 조회만 403(IP 미등록 흉내). 가짜 서버의 종목 목록에는 계좌 종목 8개와 목록 전용 종목(TIGER 200, KODEX 코스닥150, QQQ, VOO 등)이 있다.
 - 테스트·빌드: `./gradlew build` (경고도 오류로 본다: `-Xlint:all -Werror`).
 
 PostgreSQL로 띄우기(운영과 같은 DB):

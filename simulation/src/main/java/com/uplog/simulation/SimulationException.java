@@ -19,6 +19,12 @@ public final class SimulationException extends RuntimeException {
         return new SimulationException(ErrorCode.INVALID_PARAMETER, message);
     }
 
+    /** 비로그인·미연결: 실제 종목 시세는 요청자 자신의 키로만 받는다. */
+    public static SimulationException requiresConnection() {
+        return new SimulationException(ErrorCode.SIMULATION_REQUIRES_CONNECTION,
+                "실제 종목 시세는 연결한 토스증권 키로 받아요. 계좌를 연결하면 시뮬레이션할 수 있어요.");
+    }
+
     public ErrorCode code() {
         return code;
     }

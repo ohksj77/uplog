@@ -40,7 +40,9 @@ class AuthSecurityTest {
                 .andExpect(jsonPath("$.user", nullValue()))
                 .andExpect(jsonPath("$.connection.status", is("NONE")))
                 .andExpect(jsonPath("$.connection.maskedAccountNo", nullValue()));
-        mvc.perform(get("/api/etfs")).andExpect(status().isOk());
+        // 시뮬레이션 API는 열려 있지만(401이 아님) 연결이 없으면 403 SIMULATION_REQUIRES_CONNECTION
+        mvc.perform(get("/api/etfs")).andExpect(status().isForbidden());
+        mvc.perform(get("/api/instruments")).andExpect(status().isForbidden());
         mvc.perform(get("/actuator/health")).andExpect(status().isOk());
     }
 

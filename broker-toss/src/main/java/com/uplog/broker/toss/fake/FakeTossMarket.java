@@ -24,7 +24,19 @@ final class FakeTossMarket {
     static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     static final ZoneId NEW_YORK = ZoneId.of("America/New_York");
 
-    record Symbol(String symbol, String name, String country, String currency, double start, double drift, double vol) {
+    /**
+     * @param exchange 상장 시장(KOSPI, KOSDAQ, NYSE, NASDAQ, AMEX)
+     * @param securityType 토스 종목 유형(STOCK, ETF, FOREIGN_ETF, ETN …)
+     * @param listDate 상장일. 이보다 이른 일봉은 없다(EPOCH보다 늦을 때만 의미가 있다)
+     */
+    record Symbol(String symbol, String name, String country, String currency, double start, double drift, double vol,
+            String exchange, String securityType, boolean commonShare, String isin, LocalDate listDate) {
+
+        Symbol(String symbol, String name, String country, String currency, double start, double drift, double vol,
+                String exchange, String securityType) {
+            this(symbol, name, country, currency, start, drift, vol, exchange, securityType, true,
+                    (country.equals("KR") ? "KR7" : "US0") + String.format("%-8s", symbol).replace(' ', '0') + "0", null);
+        }
 
         boolean usd() {
             return currency.equals("USD");
@@ -35,17 +47,37 @@ final class FakeTossMarket {
         }
     }
 
+    /** 가짜 계좌가 거래하는 종목. 순서·구성을 바꾸면 가짜 계좌의 체결이 달라진다. */
     static final List<Symbol> SYMBOLS = List.of(
-            new Symbol("005930", "삼성전자", "KR", "KRW", 58_000, 0.0003, 0.017),
-            new Symbol("000660", "SK하이닉스", "KR", "KRW", 76_000, 0.0012, 0.024),
-            new Symbol("035420", "NAVER", "KR", "KRW", 180_000, 0.0000, 0.020),
-            new Symbol("069500", "KODEX 200", "KR", "KRW", 30_000, 0.0003, 0.010),
-            new Symbol("AAPL", "애플", "US", "USD", 125, 0.0006, 0.016),
-            new Symbol("NVDA", "엔비디아", "US", "USD", 15, 0.0022, 0.030),
-            new Symbol("TSLA", "테슬라", "US", "USD", 110, 0.0008, 0.035),
-            new Symbol("SPY", "SPDR S&P 500 ETF", "US", "USD", 380, 0.0005, 0.009));
+            new Symbol("005930", "삼성전자", "KR", "KRW", 58_000, 0.0003, 0.017, "KOSPI", "STOCK"),
+            new Symbol("000660", "SK하이닉스", "KR", "KRW", 76_000, 0.0012, 0.024, "KOSPI", "STOCK"),
+            new Symbol("035420", "NAVER", "KR", "KRW", 180_000, 0.0000, 0.020, "KOSPI", "STOCK"),
+            new Symbol("069500", "KODEX 200", "KR", "KRW", 30_000, 0.0003, 0.010, "KOSPI", "ETF"),
+            new Symbol("AAPL", "애플", "US", "USD", 125, 0.0006, 0.016, "NASDAQ", "STOCK"),
+            new Symbol("NVDA", "엔비디아", "US", "USD", 15, 0.0022, 0.030, "NASDAQ", "STOCK"),
+            new Symbol("TSLA", "테슬라", "US", "USD", 110, 0.0008, 0.035, "NASDAQ", "STOCK"),
+            new Symbol("SPY", "SPDR S&P 500 ETF", "US", "USD", 380, 0.0005, 0.009, "AMEX", "ETF"));
 
-    static final Map<String, Symbol> BY_CODE = SYMBOLS.stream().collect(Collectors.toMap(Symbol::symbol, Function.identity()));
+    /** 종목 목록(GET /api/v1/stocks/all)에만 있는 종목. 기능 A의 실제 종목 검색·시뮬레이션을 로컬에서 보려고 둔다. */
+    static final List<Symbol> LISTED_ONLY = List.of(
+            new Symbol("102110", "TIGER 200", "KR", "KRW", 30_500, 0.0003, 0.010, "KOSPI", "ETF"),
+            new Symbol("360750", "TIGER 미국S&P500", "KR", "KRW", 13_000, 0.0005, 0.010, "KOSPI", "ETF"),
+            new Symbol("005935", "삼성전자우", "KR", "KRW", 47_000, 0.0003, 0.015, "KOSPI", "STOCK", false,
+                    "KR7005931001", null),
+            new Symbol("500001", "레버리지 ETN", "KR", "KRW", 10_000, 0.0, 0.020, "KOSPI", "ETN"),
+            new Symbol("229200", "KODEX 코스닥150", "KR", "KRW", 12_000, 0.0001, 0.014, "KOSDAQ", "ETF"),
+            new Symbol("247540", "에코프로비엠", "KR", "KRW", 120_000, 0.0002, 0.035, "KOSDAQ", "STOCK"),
+            new Symbol("KO", "코카콜라", "US", "USD", 60, 0.0002, 0.009, "NYSE", "STOCK"),
+            new Symbol("QQQ", "인베스코 QQQ", "US", "USD", 270, 0.0006, 0.012, "NASDAQ", "ETF"),
+            new Symbol("VOO", "뱅가드 S&P 500 ETF", "US", "USD", 350, 0.0005, 0.009, "AMEX", "FOREIGN_ETF"),
+            // 2025-06-02 상장: 상장 전 기간을 요청해도 그 앞 일봉은 없다
+            new Symbol("NEWX", "뉴리스팅 테크", "US", "USD", 20, 0.0010, 0.030, "NASDAQ", "STOCK", true,
+                    "US0NEWX00000", LocalDate.of(2025, 6, 2)));
+
+    /** 시세가 있는 모든 종목(계좌 종목 + 목록 전용 종목). */
+    static final List<Symbol> UNIVERSE = java.util.stream.Stream.concat(SYMBOLS.stream(), LISTED_ONLY.stream()).toList();
+
+    static final Map<String, Symbol> BY_CODE = UNIVERSE.stream().collect(Collectors.toMap(Symbol::symbol, Function.identity()));
 
     private final LocalDate today;
     private final Map<String, NavigableMap<LocalDate, BigDecimal>> closes = new TreeMap<>();
@@ -53,11 +85,12 @@ final class FakeTossMarket {
 
     FakeTossMarket(LocalDate today) {
         this.today = today;
-        for (Symbol s : SYMBOLS) {
+        for (Symbol s : UNIVERSE) {
             Random rnd = new Random(s.symbol().hashCode() * 31L + 7);
             NavigableMap<LocalDate, BigDecimal> series = new TreeMap<>();
             double price = s.start();
-            for (LocalDate d = EPOCH; !d.isAfter(today); d = d.plusDays(1)) {
+            LocalDate first = s.listDate() == null || s.listDate().isBefore(EPOCH) ? EPOCH : s.listDate();
+            for (LocalDate d = first; !d.isAfter(today); d = d.plusDays(1)) {
                 if (!weekday(d)) {
                     continue;
                 }

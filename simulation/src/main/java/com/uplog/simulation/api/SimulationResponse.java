@@ -20,7 +20,14 @@ public record SimulationResponse(LocalDate from, LocalDate to, List<EtfResult> r
 
     public record EtfResult(Etf etf, Result lumpSum, Result recurring) {}
 
-    public record Etf(String code, String name, String currency, boolean sample) {}
+    /**
+     * 시뮬레이션한 종목(ETF 또는 주식).
+     *
+     * @param market {@code KR} | {@code US}
+     * @param type {@code ETF} | {@code STOCK}
+     * @param currency 종목의 거래 통화. USD 종목도 응답의 금액·종가는 원화로 환산한 값이다.
+     */
+    public record Etf(String code, String name, String market, String type, String currency) {}
 
     public record Result(Summary summary, Pain pain, StreakSet streaks, List<Day> days) {
 
@@ -71,6 +78,9 @@ public record SimulationResponse(LocalDate from, LocalDate to, List<EtfResult> r
 
     public record Streak(int length, LocalDate start, LocalDate end) {}
 
-    /** @param purchased 그날 매수가 체결됐는지(순현금흐름 > 0) */
+    /**
+     * @param close 그날 종가(원). USD 종목은 그날 USD/KRW(없으면 직전 환율)로 환산한 값
+     * @param purchased 그날 매수가 체결됐는지(순현금흐름 > 0)
+     */
     public record Day(LocalDate date, long close, long value, long invested, double dailyReturn, boolean purchased) {}
 }

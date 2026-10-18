@@ -23,7 +23,10 @@ public final class TossOutboundGuard implements ClientHttpRequestInterceptor {
             "/api/v1/orders",
             "/api/v1/buying-power",
             "/api/v1/exchange-rate",
-            "/api/v1/candles");
+            "/api/v1/candles",
+            // 종목 유니버스·상세(기능 A 실제 종목 검색). 둘 다 시세 조회용 GET이다.
+            "/api/v1/stocks",
+            "/api/v1/stocks/all");
     static final String TOKEN_PATH = "/oauth2/token";
     private static final Pattern MARKET_CALENDAR = Pattern.compile("/api/v1/market-calendar/[A-Z]{2}");
 
