@@ -112,6 +112,7 @@ export function setup(): TossSetup {
     egressIps: EGRESS_IPS,
     keyPageUrl: "https://wts.tossinvest.com/",
     notes: ["같은 키를 다른 도구에서도 쓰면 서로의 접속이 끊길 수 있어요. 업로그 전용 키를 새로 발급해 주세요."],
+    simulated: true,
   };
 }
 

@@ -37,7 +37,8 @@ public final class ConnectionDtos {
         }
     }
 
-    public record SetupResponse(List<String> egressIps, URI keyPageUrl, List<String> notes) {}
+    /** @param simulated 가짜 토스 서버에 연결되는 개발 환경이면 true */
+    public record SetupResponse(List<String> egressIps, URI keyPageUrl, List<String> notes, boolean simulated) {}
 
     /** @param state PENDING | RUNNING | DONE | FAILED */
     public record Backfill(String state, double progress) {}

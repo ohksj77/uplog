@@ -30,7 +30,7 @@ import tools.jackson.databind.json.JsonMapper;
     "uplog.toss.fake-server.rate-limit-multiplier=1000"
 })
 @AutoConfigureMockMvc
-@ActiveProfiles({"local", "api"})
+@ActiveProfiles({"local", "api", "fake-toss"})
 class TossIngestEndToEndTest {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -94,7 +94,9 @@ class TossIngestEndToEndTest {
         assertThat(inferred).isPositive();
 
         JsonNode summary = fetch("/api/portfolio/summary", session);
-        assertThat(summary.get("account").get("sample").asBoolean()).isFalse();
+        // 가짜 토스 서버에서 온 계좌는 실제 계좌로 보이지 않게 샘플 계좌로 만든다
+        assertThat(summary.get("account").get("sample").asBoolean()).isTrue();
+        assertThat(summary.get("account").get("name").asString()).isEqualTo("가짜 토스 계좌(개발용)");
         assertThat(summary.get("totalValue").asLong()).isPositive();
         assertThat(summary.get("netDeposits").asLong()).isPositive();
 

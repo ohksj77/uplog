@@ -157,6 +157,7 @@ function ConnectSteps() {
   const step = phase.step;
   return (
     <div className="space-y-6">
+      {setupData?.simulated && <SimulatedNotice />}
       <StepIndicator current={step} />
       {step === 1 && (
         <StepSection n={1} title="토스증권에서 Open API 키 발급하기" headingRef={headingRef}>
@@ -340,5 +341,18 @@ function ChooseAccount({
         </div>
       </form>
     </section>
+  );
+}
+
+/** 개발용 가짜 토스 서버에 연결되는 환경. 진짜 키를 넣어도 진짜 토스로 가지 않는다는 걸 먼저 알린다. */
+function SimulatedNotice() {
+  return (
+    <aside role="note" aria-label="개발용 가짜 서버 안내" className="space-y-1 rounded-2xl border-2 border-dashed border-border p-4 text-sm break-keep">
+      <p className="font-semibold">지금은 개발용 가짜 토스 서버에 연결돼요</p>
+      <p className="text-muted">
+        진짜 토스증권이 아니라서 연결해도 내 계좌가 아닌 가짜 데이터가 보여요. 진짜 키는 넣지 마세요. 아무 client_id와 client_secret{" "}
+        <code className="font-mono">dev</code>로 연결해 볼 수 있어요.
+      </p>
+    </aside>
   );
 }

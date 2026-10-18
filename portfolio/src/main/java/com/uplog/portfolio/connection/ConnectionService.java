@@ -112,7 +112,7 @@ public class ConnectionService {
     }
 
     public SetupResponse setup() {
-        return new SetupResponse(egress.egressIps(), properties.keyPageUrl(), NOTES);
+        return new SetupResponse(egress.egressIps(), properties.keyPageUrl(), NOTES, properties.simulated());
     }
 
     public ConnectionStatusResponse status(long userId) {
@@ -191,7 +191,11 @@ public class ConnectionService {
                         return a.id();
                     })
                     .orElseGet(() -> repository.insertConnectedAccount(
-                            userId, chosen.accountSeq(), chosen.maskedAccountNo(), LocalDate.now(clock.withZone(KST))));
+                            userId,
+                            chosen.accountSeq(),
+                            chosen.maskedAccountNo(),
+                            LocalDate.now(clock.withZone(KST)),
+                            properties.simulated()));
             credentials.save(id, creds);
             scheduler.scheduleBackfill(id);
             return id;

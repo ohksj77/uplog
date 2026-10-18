@@ -12,6 +12,7 @@ const bannerLink = "shrink-0 rounded font-semibold text-accent underline-offset-
 /**
  * 홈 위쪽 안내 띠.
  * - 샘플 계좌를 보는 비로그인 → 로그인 권유
+ * - 연결했는데 계좌가 샘플(개발용 가짜 토스 서버) → 가짜 데이터라고 알림
  * - 로그인했지만 연결 전인데 샘플을 보는 경우(mock) → 연결 권유
  * - 역산 중 → 진행률. 끝나면 onBackfillDone으로 홈 데이터를 다시 부른다.
  */
@@ -20,6 +21,17 @@ export function HomeAccountBanner({ sample, onBackfillDone }: { sample: boolean;
   if (user === undefined) return null;
   if (user && connectionStatus === "BACKFILLING") return <BackfillBanner onDone={onBackfillDone} />;
   if (!sample) return null;
+  if (user && connectionStatus === "ACTIVE") {
+    // 연결한 계좌가 샘플이면 개발용 가짜 토스 서버에서 온 데이터다
+    return (
+      <aside aria-label="가짜 데이터 안내" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl border-2 border-dashed border-border px-4 py-3 text-sm">
+        <p className="break-keep">개발용 가짜 토스 서버에 연결된 계좌예요. 보이는 기록은 진짜 내 계좌가 아니에요.</p>
+        <Link href="/settings/connection" className={bannerLink}>
+          연결 설정
+        </Link>
+      </aside>
+    );
+  }
   return (
     <aside aria-label="샘플 계좌 안내" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl border border-border px-4 py-3 text-sm">
       <p className="break-keep">샘플 계좌를 보고 있어요.</p>

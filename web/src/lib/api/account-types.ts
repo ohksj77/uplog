@@ -32,6 +32,8 @@ export type TossSetup = {
   /** WTS Open API 설정 화면 주소 */
   keyPageUrl: string;
   notes: string[];
+  /** 진짜 토스 대신 개발용 가짜 토스 서버에 연결되는 환경이면 true */
+  simulated: boolean;
 };
 
 export type TossCredentials = {

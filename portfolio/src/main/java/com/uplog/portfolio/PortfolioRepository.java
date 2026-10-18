@@ -112,15 +112,21 @@ public class PortfolioRepository {
         jdbc.sql("SELECT id FROM app_user WHERE id = :userId FOR UPDATE").param("userId", userId).query(Long.class).optional();
     }
 
-    /** 연결한 토스 계좌를 만든다. */
+    /**
+     * 연결한 토스 계좌를 만든다.
+     *
+     * @param simulated 가짜 토스 서버에서 온 계좌면 true — 실제 계좌로 보이지 않게 샘플 계좌로 만든다
+     */
     @Transactional
-    public long insertConnectedAccount(long userId, String brokerAccountSeq, String maskedAccountNo, LocalDate connectedAt) {
+    public long insertConnectedAccount(
+            long userId, String brokerAccountSeq, String maskedAccountNo, LocalDate connectedAt, boolean simulated) {
         KeyHolder key = new GeneratedKeyHolder();
         jdbc.sql("""
                         INSERT INTO account (name, broker, sample, connected_at, user_id, broker_account_seq, masked_account_no, status)
-                        VALUES (:name, 'TOSS', FALSE, :connectedAt, :userId, :seq, :masked, 'ACTIVE')
+                        VALUES (:name, 'TOSS', :sample, :connectedAt, :userId, :seq, :masked, 'ACTIVE')
                         """)
-                .param("name", "토스증권 계좌")
+                .param("name", simulated ? "가짜 토스 계좌(개발용)" : "토스증권 계좌")
+                .param("sample", simulated)
                 .param("connectedAt", Date.valueOf(connectedAt))
                 .param("userId", userId)
                 .param("seq", brokerAccountSeq)
