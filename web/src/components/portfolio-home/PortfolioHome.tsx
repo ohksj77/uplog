@@ -7,7 +7,7 @@ import { AccountSummary } from "@/components/portfolio-home/AccountSummary";
 import { HoldingsList } from "@/components/portfolio-home/HoldingsList";
 import { InsightsLinkCard } from "@/components/portfolio-home/InsightsLinkCard";
 import { LogHeadline } from "@/components/portfolio-home/LogHeadline";
-import { YearTabs, yearsBetween } from "@/components/portfolio-home/YearTabs";
+import { YearTabs, yearsBetween } from "@/components/ui/YearTabs";
 import { ErrorBlock, LoadingBlock, SampleAccountBadge } from "@/components/ui/AsyncState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getHoldings, getPortfolioLog, getPortfolioSummary } from "@/lib/api/portfolio-client";

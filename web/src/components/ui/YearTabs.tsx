@@ -7,17 +7,24 @@ export function yearsBetween(firstDate: string, lastDate: string): number[] {
   return Array.from({ length: Math.max(0, b - a + 1) }, (_, i) => a + i);
 }
 
+type YearTabsProps = {
+  years: readonly number[];
+  selected: number | null;
+  /** 연도를 붙일 경로, 예: "/" → "/?year=2026", "/insights/costs" → "/insights/costs?year=2026" */
+  basePath?: string;
+};
+
 /** 연도 고르기. URL(?year=)이 상태라 링크로 만든다 — 뒤로 가기·공유가 그대로 된다. */
-export function YearTabs({ years, selected }: { years: readonly number[]; selected: number | null }) {
+export function YearTabs({ years, selected, basePath = "/" }: YearTabsProps) {
   return (
     <nav aria-label="연도">
-      <ul className="inline-flex rounded-lg bg-surface p-0.5 text-sm">
+      <ul className="inline-flex flex-wrap rounded-lg bg-surface p-0.5 text-sm">
         {years.map((y) => {
           const current = y === selected;
           return (
             <li key={y}>
               <Link
-                href={`/?year=${y}`}
+                href={`${basePath}?year=${y}`}
                 scroll={false}
                 aria-current={current ? "page" : undefined}
                 className={`block rounded-md px-3 py-1.5 tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-accent motion-safe:transition-colors ${

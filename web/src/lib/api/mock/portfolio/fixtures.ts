@@ -75,7 +75,7 @@ export type MockAccountDay = { date: IsoDate; value: number; netCashFlow: number
 
 let account: MockAccountDay[] | null = null;
 
-/** 계좌 평가금 시계열. 매달 첫 거래일 100만 원 입금, 가끔 출금. */
+/** 계좌 평가금 시계열. 매달 첫 거래일 100만 원 입금, 가끔 출금. 화면이 이익·손실 문장을 모두 보이도록 완만한 상승 추세. */
 export function accountSeries(): MockAccountDay[] {
   if (account) return account;
   const rand = rng("account");
@@ -87,7 +87,7 @@ export function accountSeries(): MockAccountDay[] {
       month = date.slice(0, 7);
       cf = value === 0 ? 10_000_000 : rand() < 0.08 ? -2_000_000 : 1_000_000;
     }
-    value = Math.max(0, value * (1 + 0.0004 + 0.011 * (rand() + rand() + rand() - 1.5) * 1.4) + cf);
+    value = Math.max(0, value * (1 + 0.0009 + 0.011 * (rand() + rand() + rand() - 1.5) * 1.4) + cf);
     return { date, value: Math.round(value), netCashFlow: cf };
   });
   return account;
