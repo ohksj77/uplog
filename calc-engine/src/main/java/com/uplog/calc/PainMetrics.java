@@ -24,6 +24,10 @@ public record PainMetrics(
         DailyReturn worstDay,
         DailyPnl worstDayAmount) {
 
+    /** 원금 대비 이보다 작은 부족분은 계산 오차로 본다. */
+    static final java.math.BigDecimal UNDERWATER_TOLERANCE = new java.math.BigDecimal("0.000001");
+
+
     /** @param peak 하락이 시작된 고점일, trough 바닥일 */
     public record Drawdown(double rate, LocalDate peak, LocalDate trough) {}
 
@@ -108,7 +112,9 @@ public record PainMetrics(
         Underwater longest = null;
         LocalDate start = null;
         for (ReplayPoint p : points) {
-            boolean under = p.value().compareTo(p.invested()) < 0;
+            // 수량 × 종가는 16자리 정밀도라 매수한 날 평가금이 원금보다 1e-14쯤 작게 나올 수 있다.
+            // 그런 계산 오차를 "원금 아래"로 세지 않도록 원금의 100만분의 1보다 작은 차이는 무시한다.
+            boolean under = p.invested().subtract(p.value()).compareTo(p.invested().abs().multiply(UNDERWATER_TOLERANCE)) > 0;
             if (under && start == null) {
                 start = p.date();
             } else if (!under && start != null) {

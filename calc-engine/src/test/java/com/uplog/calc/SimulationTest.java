@@ -89,4 +89,14 @@ class SimulationTest {
         assertThatThrownBy(() -> Simulation.run(new PurchasePlan.LumpSum(won(100)), prices, WED.plusDays(1), WED.plusDays(3)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void 매수한_날의_미세한_계산_오차는_원금_아래로_세지_않는다() {
+        // 100원을 3으로 나눠 사면 수량 × 종가가 원금보다 아주 조금 작게 나온다. 이후 오르기만 하면 원금 아래인 날은 없다.
+        PriceSeries rising = weekdayPrices(3, 4, 5);
+
+        Simulation sim = Simulation.run(new PurchasePlan.LumpSum(won(100)), rising, MON, WED);
+
+        assertThat(sim.pain().longestUnderwater()).isEmpty();
+    }
 }
