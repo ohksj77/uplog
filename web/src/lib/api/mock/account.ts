@@ -1,23 +1,13 @@
 import { AccountApiError } from "@/lib/api/account-types";
-import type {
-  AuthProvider,
-  AuthProviders,
-  BrokerAccount,
-  ConnectResult,
-  HandoffRedeemResult,
-  HandoffToken,
-  Me,
-  TossConnection,
-  TossCredentials,
-  TossSetup,
-} from "@/lib/api/account-types";
+import type { BrokerAccount, ConnectResult, Me, PublicIp, TossConnection, TossCredentials, TossSetup } from "@/lib/api/account-types";
 
-// NEXT_PUBLIC_USE_MOCK=1 에서 로그인 세션과 연결 상태를 localStorage에 흉내 낸다. 키(client_secret)는 저장하지 않는다.
+// NEXT_PUBLIC_USE_MOCK=1 (next dev 전용)에서 연결 상태를 localStorage에 흉내 낸다. 키(client_secret)는 저장하지 않는다.
+// 맥 앱처럼 로그인은 없고, 로컬 사용자 한 명이 늘 있다.
 //
 // 연결 흐름(가짜 토스 서버 규칙과 맞춘다):
 // - client_secret이 "invalid"            → TOSS_INVALID_CREDENTIALS (field: clientSecret)
 // - client_id가 "bad-id"로 시작          → TOSS_INVALID_CREDENTIALS (field: clientId)
-// - client_id가 "ip-blocked"로 시작      → TOSS_IP_NOT_ALLOWED (egressIps 포함)
+// - client_id가 "ip-blocked"로 시작      → TOSS_IP_NOT_ALLOWED
 // - client_id가 "no-account"로 시작      → TOSS_NO_BROKERAGE_ACCOUNT
 // - client_id가 "rate"로 시작            → TOSS_RATE_LIMITED
 // - client_id가 "down"으로 시작          → TOSS_UNAVAILABLE
@@ -27,15 +17,11 @@ import type {
 //
 // 키 다시 넣기(PUT /api/connections/toss/credentials): 위 오류 규칙과 같고, client_id가 "other"로 시작하면
 // 다른 계좌의 키라 INVALID_PARAMETER. 성공하면 ERROR였던 연결이 ACTIVE로 돌아온다.
-//
-// PC에서 이어 하기(handoff): 10분짜리 1회용 코드를 만들고, 한 번 쓰면 지운다. 같은 브라우저 저장소를 쓰므로
-// 다른 탭에서 /continue?token=… 을 열어 흉내 낼 수 있다.
 
 const KEY = "uplog.mock.account";
 const BACKFILL_MS = 10_000;
 const SYNC_INTERVAL_MS = 60 * 60 * 1000;
-const EGRESS_IPS = ["203.0.113.10", "203.0.113.11"];
-const HANDOFF_MS = 10 * 60 * 1000;
+const LOCAL_USER = { id: 1 };
 
 type MockConnection = {
   maskedAccountNo: string;
@@ -45,20 +31,17 @@ type MockConnection = {
 };
 
 type MockState = {
-  user: { id: number; nickname: string; provider: AuthProvider } | null;
   connection: MockConnection | null;
-  /** 이어 하기 코드 → 만료 시각(ms). 쓰면 지운다. */
-  handoffs?: Record<string, number>;
 };
 
 function load(): MockState {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as MockState;
+    if (raw) return { connection: (JSON.parse(raw) as Partial<MockState>).connection ?? null };
   } catch {
-    // 저장소를 못 쓰면 비로그인으로 본다.
+    // 저장소를 못 쓰면 연결 전으로 본다.
   }
-  return { user: null, connection: null };
+  return { connection: null };
 }
 
 function save(state: MockState) {
@@ -69,13 +52,7 @@ function save(state: MockState) {
   }
 }
 
-function requireUser(state: MockState) {
-  if (!state.user) throw new AccountApiError(401, "UNAUTHENTICATED", "로그인이 필요해요.");
-  return state.user;
-}
-
 function requireConnection(state: MockState) {
-  requireUser(state);
   if (!state.connection) throw new AccountApiError(404, "ACCOUNT_NOT_CONNECTED", "연결된 계좌가 없어요.");
   return state.connection;
 }
@@ -90,42 +67,26 @@ function statusOf(c: MockConnection): TossConnection["status"] {
   return p >= 1 ? "ACTIVE" : "BACKFILLING";
 }
 
-export function providers(): AuthProviders {
-  return { kakao: true, dev: true };
-}
-
 export function me(): Me {
   const s = load();
-  if (!s.user) return { user: null, connection: { status: "NONE", maskedAccountNo: null } };
   return {
-    user: s.user,
+    user: LOCAL_USER,
     connection: s.connection
       ? { status: statusOf(s.connection), maskedAccountNo: s.connection.maskedAccountNo }
       : { status: "NONE", maskedAccountNo: null },
   };
 }
 
-export function login(nickname: string, provider: AuthProvider): void {
-  const name = nickname.trim();
-  if (!name) throw new AccountApiError(400, "INVALID_PARAMETER", "닉네임을 입력해 주세요.");
-  const prev = load();
-  // 같은 브라우저에서는 같은 사용자로 본다(연결 상태 유지).
-  save({ user: { id: 1, nickname: name, provider }, connection: prev.connection });
-}
-
-export function logout(): void {
-  const s = load();
-  save({ ...s, user: null });
-}
-
 export function setup(): TossSetup {
-  requireUser(load());
   return {
-    egressIps: EGRESS_IPS,
     keyPageUrl: "https://www.tossinvest.com/",
     notes: ["같은 키를 다른 도구에서도 쓰면 서로의 접속이 끊길 수 있어요. 업로그 전용 키를 새로 발급해 주세요."],
     simulated: true,
   };
+}
+
+export function publicIp(): PublicIp {
+  return { ip: "203.0.113.42" };
 }
 
 const ACCOUNTS: BrokerAccount[] = [
@@ -141,7 +102,6 @@ function checkKeys({ clientId, clientSecret }: TossCredentials): BrokerAccount[]
       400,
       "TOSS_INVALID_CREDENTIALS",
       "토스증권에 없는 client_id예요. WTS Open API 화면의 Client Id를 복사 버튼으로 다시 복사해 붙여 넣어 주세요.",
-      [],
       "clientId",
     );
   }
@@ -150,11 +110,10 @@ function checkKeys({ clientId, clientSecret }: TossCredentials): BrokerAccount[]
       400,
       "TOSS_INVALID_CREDENTIALS",
       "client_secret이 맞지 않아요. 키를 발급할 때 복사한 값을 앞뒤 공백 없이 다시 붙여 넣어 주세요. 잃어버렸다면 재발급해야 해요.",
-      [],
       "clientSecret",
     );
   }
-  if (clientId.startsWith("ip-blocked")) throw new AccountApiError(400, "TOSS_IP_NOT_ALLOWED", "허용되지 않은 IP예요.", EGRESS_IPS);
+  if (clientId.startsWith("ip-blocked")) throw new AccountApiError(400, "TOSS_IP_NOT_ALLOWED", "허용되지 않은 IP예요.");
   if (clientId.startsWith("no-account")) throw new AccountApiError(400, "TOSS_NO_BROKERAGE_ACCOUNT", "종합매매 계좌가 없어요.");
   if (clientId.startsWith("rate")) throw new AccountApiError(429, "TOSS_RATE_LIMITED", "요청이 너무 많아요.");
   if (clientId.startsWith("down")) throw new AccountApiError(502, "TOSS_UNAVAILABLE", "토스증권에 연결하지 못했어요.");
@@ -162,16 +121,12 @@ function checkKeys({ clientId, clientSecret }: TossCredentials): BrokerAccount[]
 }
 
 function verify(credentials: TossCredentials): BrokerAccount[] {
-  const s = load();
-  requireUser(s);
-  if (s.connection) throw new AccountApiError(409, "ALREADY_CONNECTED", "이미 연결된 계좌가 있어요.");
+  if (load().connection) throw new AccountApiError(409, "ALREADY_CONNECTED", "이미 연결된 계좌가 있어요.");
   return checkKeys(credentials);
 }
 
 function startConnection(account: BrokerAccount, clientId: string) {
-  const s = load();
   save({
-    ...s,
     connection: {
       maskedAccountNo: account.maskedAccountNo,
       connectedAt: new Date().toISOString(),
@@ -220,53 +175,20 @@ export function sync(): void {
   if (Date.now() - last < SYNC_INTERVAL_MS) {
     throw new AccountApiError(429, "SYNC_TOO_SOON", "다시 수집은 1시간에 한 번 할 수 있어요.");
   }
-  save({ ...s, connection: { ...c, lastSyncRequestedAt: new Date().toISOString() } });
+  save({ connection: { ...c, lastSyncRequestedAt: new Date().toISOString() } });
 }
 
 export function disconnect(): void {
-  const s = load();
-  requireConnection(s);
-  save({ ...s, connection: null });
+  requireConnection(load());
+  save({ connection: null });
 }
 
 export function replaceCredentials(credentials: TossCredentials): void {
-  const s = load();
-  const c = requireConnection(s);
+  const c = requireConnection(load());
   checkKeys(credentials);
   if (credentials.clientId.startsWith("other")) {
     throw new AccountApiError(400, "INVALID_PARAMETER", "이 키로는 연결한 계좌가 보이지 않아요. 연결한 계좌를 연 토스 계정에서 발급한 키를 넣어 주세요.");
   }
   // 새 키로 다시 수집할 수 있게 됐으니 멈췄던 연결을 되살린다.
-  save({ ...s, connection: { ...c, failAt: null } });
-}
-
-function randomToken(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return `mock-${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
-}
-
-export function createHandoff(): HandoffToken {
-  const s = load();
-  requireUser(s);
-  const now = Date.now();
-  // 만료된 코드는 정리한다.
-  const handoffs = Object.fromEntries(Object.entries(s.handoffs ?? {}).filter(([, exp]) => exp > now));
-  const token = randomToken();
-  const expiresAt = now + HANDOFF_MS;
-  save({ ...s, handoffs: { ...handoffs, [token]: expiresAt } });
-  return { token, expiresAt: new Date(expiresAt).toISOString() };
-}
-
-export function redeemHandoff(token: string): HandoffRedeemResult {
-  const s = load();
-  const exp = s.handoffs?.[token];
-  const rest = { ...(s.handoffs ?? {}) };
-  delete rest[token];
-  if (exp == null || exp <= Date.now() || !s.user) {
-    save({ ...s, handoffs: rest });
-    throw new AccountApiError(400, "HANDOFF_INVALID", "이미 썼거나 시간이 지난 링크예요. 휴대폰에서 링크를 새로 만들거나, 이 기기에서 직접 로그인해 주세요.");
-  }
-  save({ ...s, handoffs: rest });
-  return { nickname: s.user.nickname };
+  save({ connection: { ...c, failAt: null } });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Contributions } from "@/components/day-detail/Contributions";
 import { CashFlows } from "@/components/day-detail/CashFlows";
 import { DayDetailSkeleton } from "@/components/day-detail/DayDetailSkeleton";
@@ -14,6 +15,12 @@ import { getPortfolioDay } from "@/lib/api/portfolio-client";
 import { useApi } from "@/lib/use-api";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** /days?date=YYYY-MM-DD. 쿼리는 요청마다 달라서 페이지가 Suspense로 감싼다. */
+export function DayDetailFromUrl() {
+  const date = useSearchParams().get("date") ?? "";
+  return <DayDetailView date={date} />;
+}
 
 /** 하루 상세. 날짜 형식이 틀리면 부르지 않고 바로 "기록 없음"을 보여준다. */
 export function DayDetailView({ date }: { date: string }) {

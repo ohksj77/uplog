@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { PortfolioDay } from "@/lib/api/portfolio-types";
 import { formatPercent, formatSignedWon, formatWon, toneOf } from "@/lib/format";
+import { holdingHref } from "@/lib/routes";
 
 const BAR = { gain: "var(--gain-3)", loss: "var(--loss-3)", flat: "var(--log-zero)" } as const;
 const TEXT = { gain: "text-gain", loss: "text-loss", flat: "text-muted" } as const;
@@ -26,7 +27,7 @@ export function Contributions({ day }: { day: PortfolioDay }) {
             return (
               <li key={c.instrument.code}>
                 <Link
-                  href={`/holdings/${encodeURIComponent(c.instrument.code)}`}
+                  href={holdingHref(c.instrument.code)}
                   className="block rounded-xl px-3 py-2.5 hover:bg-border focus-visible:outline-2 focus-visible:outline-accent"
                 >
                   <div className="flex items-baseline justify-between gap-3">

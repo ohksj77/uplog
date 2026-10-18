@@ -17,7 +17,7 @@ import { useMe } from "@/lib/use-me";
 
 const HOME_QUESTION = "올해 나는 며칠 벌고 며칠 잃었나";
 
-/** "?year=2025" → 2025. 없거나 이상하면 null(서버 기본 = 마지막 기록 연도). */
+/** "?year=2025" → 2025. 없거나 이상하면 null(엔진 기본 = 마지막 기록 연도). */
 export function parseYear(raw: string | null): number | null {
   return raw && /^\d{4}$/.test(raw) ? Number(raw) : null;
 }
@@ -40,7 +40,7 @@ export function PortfolioHome() {
     holdings.retry();
   };
 
-  // 계좌가 없으면(비로그인인데 데모가 없거나, 로그인했는데 연결 전) 같은 오류를 세 번 보이지 않고 연결 안내 하나만 보여 준다.
+  // 계좌가 없으면(연결 전인데 샘플 계좌도 없으면) 같은 오류를 세 번 보이지 않고 연결 안내 하나만 보여 준다.
   const notConnected = summary.state.status === "error" && summary.state.error.code === "ACCOUNT_NOT_CONNECTED";
   if (notConnected) {
     return (

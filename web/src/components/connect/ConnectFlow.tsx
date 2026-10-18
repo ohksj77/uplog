@@ -3,15 +3,13 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode, type Ref } from "react";
-import { RequireLogin } from "@/components/auth/RequireLogin";
 import { ConnectDone } from "@/components/connect/ConnectDone";
-import { ContinueOnPc, useHandheld } from "@/components/connect/ContinueOnPc";
-import { EgressIpList } from "@/components/connect/EgressIpList";
 import { KeyForm } from "@/components/connect/KeyForm";
+import { PublicIpCheck } from "@/components/connect/PublicIpCheck";
 import { RekeyFlow } from "@/components/connect/RekeyFlow";
 import { card, primaryButton, secondaryButton, textLink } from "@/components/connect/styles";
 import { WtsGuideIllustration } from "@/components/connect/WtsGuideIllustration";
-import { ErrorBlock, LoadingBlock } from "@/components/ui/AsyncState";
+import { LoadingBlock } from "@/components/ui/AsyncState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ApiError } from "@/lib/api/client";
 import { chooseTossAccount, connectToss, getTossSetup } from "@/lib/api/account-client";
@@ -46,26 +44,9 @@ function ConnectByMode() {
   if (rekey) return <RekeyFlow />;
   return (
     <>
-      <PageHeader title="토스증권 계좌 연결" question="세 단계면 끝나요. 토스증권 웹은 PC에서 열어 두면 편해요." />
-      <RequireLogin next="/connect">
-        <ConnectBody />
-      </RequireLogin>
+      <PageHeader title="토스증권 계좌 연결" question="세 단계면 끝나요. 이 맥의 브라우저에서 토스증권 웹을 함께 열어 두면 편해요." />
+      <ConnectSteps />
     </>
-  );
-}
-
-/** 단계와 "PC에서 이어 하기"를 함께 둔다. PC 연결을 기다리는 동안에는 "이미 연결됨" 안내 대신 카드가 결과를 보여 준다. */
-function ConnectBody() {
-  const handheld = useHandheld();
-  const { connectionStatus } = useMe();
-  const [pcWaiting, setPcWaiting] = useState(false);
-  const showPc = pcWaiting || connectionStatus === "NONE";
-  return (
-    <div className="space-y-6">
-      {showPc && handheld && <ContinueOnPc onWaitingChange={setPcWaiting} />}
-      <ConnectSteps hideAlreadyConnected={pcWaiting} />
-      {showPc && !handheld && <ContinueOnPc onWaitingChange={setPcWaiting} />}
-    </div>
   );
 }
 
@@ -73,8 +54,8 @@ function toApiError(e: unknown): ApiError {
   return e instanceof ApiError ? e : new ApiError(0, "UNKNOWN", "알 수 없는 오류가 발생했어요.");
 }
 
-function ConnectSteps({ hideAlreadyConnected }: { hideAlreadyConnected: boolean }) {
-  const { connectionStatus, refresh } = useMe();
+function ConnectSteps() {
+  const { loading, connectionStatus, refresh } = useMe();
   const setup = useApi("toss-setup", (s) => getTossSetup(s));
   const [phase, setPhase] = useState<Phase>({ kind: "steps", step: 1 });
   const [busy, setBusy] = useState(false);
@@ -85,7 +66,6 @@ function ConnectSteps({ hideAlreadyConnected }: { hideAlreadyConnected: boolean 
   const moveFocus = useRef(false);
 
   const setupData = setup.state.status === "success" ? setup.state.data : null;
-  const ips = setupData?.egressIps ?? [];
 
   // 단계를 옮기면 새 단계 제목으로 초점을 옮긴다(처음 그릴 때는 옮기지 않는다).
   useEffect(() => {
@@ -94,7 +74,7 @@ function ConnectSteps({ hideAlreadyConnected }: { hideAlreadyConnected: boolean 
     headingRef.current?.focus();
   }, [phase]);
 
-  // 다른 화면으로 떠나면(Activity로 숨겨짐) 메모리의 키를 지우고, 계좌 고르기 중이었다면 키 입력으로 되돌린다.
+  // 다른 화면으로 떠나면 메모리의 키를 지우고, 계좌 고르기 중이었다면 키 입력으로 되돌린다.
   useLayoutEffect(() => {
     return () => {
       keysRef.current = null;
@@ -156,8 +136,9 @@ function ConnectSteps({ hideAlreadyConnected }: { hideAlreadyConnected: boolean 
 
   if (phase.kind === "done") return <ConnectDone headingRef={headingRef} />;
 
+  if (loading) return <LoadingBlock height={320} label="연결 상태를 확인하는 중" />;
+
   if (connectionStatus !== "NONE") {
-    if (hideAlreadyConnected) return null;
     return (
       <section className={`${card} space-y-3`}>
         <p className="font-semibold">이미 연결된 계좌가 있어요</p>
@@ -205,16 +186,14 @@ function ConnectSteps({ hideAlreadyConnected }: { hideAlreadyConnected: boolean 
         </StepSection>
       )}
       {step === 2 && (
-        <StepSection n={2} title="업로그 서버 IP 등록하기" headingRef={headingRef}>
+        <StepSection n={2} title="이 맥의 공인 IP 등록하기" headingRef={headingRef}>
           <p className="text-sm break-keep">
-            토스증권은 미리 등록한 IP에서 온 요청만 받아요. 같은 Open API 화면 아래쪽 <strong className="font-semibold">허용 IP 관리</strong>에서{" "}
-            <strong className="font-semibold">IP 추가</strong>를 눌러 아래 IP를 모두 추가해 주세요. IP는 여러 개 등록할 수 있어서, 이미 등록한 다른 IP는 그대로
-            두어도 돼요.
+            토스증권은 미리 등록한 IP에서 온 요청만 받아요. 업로그는 이 맥에서 토스증권에 바로 접속하니, 이 맥의 공인 IP를 등록해야 해요. 아래에서 IP를
+            확인하고, 같은 Open API 화면 아래쪽 <strong className="font-semibold">허용 IP 관리</strong>에서 <strong className="font-semibold">IP 추가</strong>를
+            눌러 더해 주세요. IP는 여러 개 등록할 수 있어서, 이미 등록한 다른 IP는 그대로 두어도 돼요.
           </p>
           <WtsGuideIllustration focus="ip" />
-          {setup.state.status === "loading" && <LoadingBlock height={112} label="등록할 IP를 불러오는 중" />}
-          {setup.state.status === "error" && <ErrorBlock error={setup.state.error} onRetry={setup.retry} />}
-          {setup.state.status === "success" && <EgressIpList ips={ips} />}
+          <PublicIpCheck />
           <p className="text-xs text-muted break-keep">등록하지 않으면 다음 단계의 연결 확인이 실패해요. 등록이 반영되기까지 잠깐 걸릴 수 있어요.</p>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
             <button type="button" onClick={() => goTo({ kind: "steps", step: 1 })} className={secondaryButton}>
@@ -229,7 +208,7 @@ function ConnectSteps({ hideAlreadyConnected }: { hideAlreadyConnected: boolean 
       {step === 3 && (
         <StepSection n={3} title="키 입력하고 연결 확인하기" headingRef={headingRef}>
           <KeyWarning />
-          <KeyForm busy={busy} error={error} fallbackIps={ips} onBack={() => goTo({ kind: "steps", step: 2 })} onSubmit={submitKeys} loginNext="/connect" />
+          <KeyForm busy={busy} error={error} onBack={() => goTo({ kind: "steps", step: 2 })} onSubmit={submitKeys} />
         </StepSection>
       )}
     </div>
@@ -271,7 +250,7 @@ function KeyIssueGuide({ setup }: { setup: ApiState<TossSetup> }) {
   return (
     <div className="space-y-4">
       <ol className="list-decimal space-y-2 pl-5 text-sm break-keep marker:text-muted">
-        <li>PC에서 토스증권 웹(www.tossinvest.com)에 로그인해요.</li>
+        <li>브라우저에서 토스증권 웹(www.tossinvest.com)에 로그인해요.</li>
         <li>
           오른쪽 사이드바 맨 아래의 <strong className="font-semibold">설정(톱니바퀴)</strong>을 누르고, 설정 창 왼쪽 메뉴에서{" "}
           <strong className="font-semibold">Open API</strong>를 골라요.
@@ -316,8 +295,9 @@ function KeyWarning() {
       </p>
       <ul className="list-disc space-y-1 pl-5 text-muted break-keep marker:text-muted">
         <li>토스증권 Open API 키에는 조회만 따로 주는 권한이 없어요. 그래서 키를 아무에게도 보여 주지 마세요.</li>
-        <li>업로그는 조회 API만 써요. 서버가 주문 요청 자체를 보낼 수 없게 막혀 있어요.</li>
-        <li>키는 암호화해서 보관하고, 연결을 해제하면 바로 지워요.</li>
+        <li>업로그는 조회 API만 써요. 주문 요청 자체를 보낼 수 없게 막혀 있어요.</li>
+        <li>키는 이 맥의 키체인으로 보호돼요. 업로그 서버는 없어요 — 키와 기록은 이 맥 밖으로 나가지 않아요.</li>
+        <li>연결을 해제하면 키를 바로 지워요.</li>
       </ul>
     </aside>
   );

@@ -6,6 +6,7 @@ import { formatLocal } from "@/components/holding/format";
 import { Signed } from "@/components/result/Signed";
 import type { HabitsInsight } from "@/lib/api/portfolio-types";
 import { formatDate, formatPercent } from "@/lib/format";
+import { holdingHref } from "@/lib/routes";
 
 // 물타기: 이미 들고 있는 종목을 평균 매수가보다 싸게 더 산 체결. 최신 순(응답 순서 그대로).
 
@@ -51,7 +52,7 @@ export function AveragingDown({ data }: { data: Averaging }) {
               <div className="min-w-0">
                 <p className="text-xs text-muted tabular-nums">{formatDate(it.date)}</p>
                 <Link
-                  href={`/holdings/${encodeURIComponent(it.instrument.code)}`}
+                  href={holdingHref(it.instrument.code)}
                   className="font-medium break-keep hover:underline focus-visible:outline-2 focus-visible:outline-accent"
                 >
                   {it.instrument.name}

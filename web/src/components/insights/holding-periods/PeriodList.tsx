@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Signed } from "@/components/result/Signed";
 import type { HoldingPeriod } from "@/lib/api/portfolio-types";
 import { formatDate, formatPercent, formatSignedWon } from "@/lib/format";
+import { holdingHref } from "@/lib/routes";
 
 // 포지션 목록(타임라인의 글 버전).
 
@@ -12,7 +13,7 @@ export function PeriodList({ periods, showInstrument = true }: { periods: Holdin
         <li key={p.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
           <div className="min-w-0">
             {showInstrument && (
-              <Link href={`/holdings/${p.instrument.code}`} className="block truncate font-medium hover:underline">
+              <Link href={holdingHref(p.instrument.code)} className="block truncate font-medium hover:underline">
                 {p.instrument.name}
               </Link>
             )}

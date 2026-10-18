@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CostsInsight } from "@/lib/api/portfolio-types";
 import { formatWon } from "@/lib/format";
+import { holdingHref } from "@/lib/routes";
 
 /** 종목별 비용. 비용 큰 순(응답 순서 그대로). 체결 횟수와 회당 비용은 종목 이름 아래에 적는다. */
 export function CostTable({ rows, total }: { rows: CostsInsight["byInstrument"]; total: CostsInsight["total"] }) {
@@ -34,7 +35,7 @@ export function CostTable({ rows, total }: { rows: CostsInsight["byInstrument"];
               return (
                 <tr key={r.instrument.code} className="border-t border-border align-top">
                   <th scope="row" className="px-3 py-2 text-left font-normal break-keep">
-                    <Link href={`/holdings/${encodeURIComponent(r.instrument.code)}`} className="underline-offset-2 hover:underline">
+                    <Link href={holdingHref(r.instrument.code)} className="underline-offset-2 hover:underline">
                       {r.instrument.name}
                     </Link>
                     <span className="block text-xs text-muted">

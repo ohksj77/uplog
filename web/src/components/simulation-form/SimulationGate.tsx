@@ -6,16 +6,15 @@ import { ConnectFirst } from "@/components/simulation-form/ConnectFirst";
 
 type SimulationGateProps = {
   children: ReactNode;
-  /** 로그인·연결 상태를 불러오는 동안 보일 것 */
+  /** 연결 상태를 불러오는 동안 보일 것 */
   fallback: ReactNode;
   asPageTitle?: boolean;
 };
 
-/** 계좌를 연결한 사용자에게만 children을 보여 준다. 비로그인·미연결이면 연결 안내. */
+/** 계좌를 연결했으면 children을, 연결 전이면 연결 안내를 보여 준다. */
 export function SimulationGate({ children, fallback, asPageTitle }: SimulationGateProps) {
-  const { user, connectionStatus } = useMe();
-  if (user === undefined) return <>{fallback}</>;
-  if (user === null) return <ConnectFirst loggedIn={false} asPageTitle={asPageTitle} />;
-  if (connectionStatus === "NONE") return <ConnectFirst loggedIn asPageTitle={asPageTitle} />;
+  const { loading, connectionStatus } = useMe();
+  if (loading) return <>{fallback}</>;
+  if (connectionStatus === "NONE") return <ConnectFirst asPageTitle={asPageTitle} />;
   return <>{children}</>;
 }

@@ -4,6 +4,7 @@ import { returnColor } from "@/components/insights/holding-periods/return-color"
 import type { IsoDate } from "@/lib/api/types";
 import type { HoldingPeriod } from "@/lib/api/portfolio-types";
 import { formatDate, formatPercent, formatSignedWon } from "@/lib/format";
+import { holdingHref } from "@/lib/routes";
 
 // 보유 기간 타임라인. 날짜 축 하나를 공유하고 종목마다 한 줄, 포지션마다 막대 하나.
 // 좁은 화면에서는 이 상자 안에서만 가로로 스크롤한다(종목 이름은 왼쪽에 붙어 있음).
@@ -85,7 +86,7 @@ function Bar({ period: p, left, right, link }: { period: HoldingPeriod; left: nu
   const label = periodLabel(p);
   const end = open && <OpenEnd className="absolute top-1/2 left-full -translate-y-1/2 text-muted" color={color} />;
   return link ? (
-    <Link href={`/holdings/${p.instrument.code}`} className={className} style={style} aria-label={label} title={label}>
+    <Link href={holdingHref(p.instrument.code)} className={className} style={style} aria-label={label} title={label}>
       {end}
     </Link>
   ) : (

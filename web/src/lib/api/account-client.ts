@@ -1,22 +1,11 @@
-import { get, USE_MOCK } from "@/lib/api/client";
+import { get, NETWORK_MESSAGE, readErrorBody, USE_MOCK } from "@/lib/api/client";
 import { AccountApiError } from "@/lib/api/account-types";
-import type {
-  AccountErrorBody,
-  AuthProviders,
-  ConnectResult,
-  HandoffRedeemResult,
-  HandoffToken,
-  Me,
-  TossConnection,
-  TossCredentials,
-  TossSetup,
-} from "@/lib/api/account-types";
+import type { AccountErrorBody, ConnectResult, Me, PublicIp, TossConnection, TossCredentials, TossSetup } from "@/lib/api/account-types";
 import * as mockAccount from "@/lib/api/mock/account";
 
-// 로그인·토스 계좌 연결 API (docs/design/account-connection.md).
-// 상태를 바꾸는 요청은 세션 쿠키(uplog_session)를 함께 보내고, 백엔드가 Origin 헤더로 CSRF를 막는다.
-
-const NETWORK_MESSAGE = "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.";
+// 토스 계좌 연결 API (docs/design/account-connection.md, docs/design/desktop-app.md).
+// 맥 앱의 로컬 엔진이 받는다. 로그인은 없고, 앱 창의 쿠키로 이 맥의 사용자임을 확인한다(없으면 403 DESKTOP_LOCKED).
+// 상태를 바꾸는 요청은 엔진이 Origin 헤더로 같은 출처인지 확인한다.
 
 function credentialField(value: unknown): "clientId" | "clientSecret" | null {
   return value === "clientId" || value === "clientSecret" ? value : null;
@@ -36,14 +25,8 @@ async function send<T>(method: "POST" | "PUT" | "DELETE", path: string, body?: u
     throw new AccountApiError(0, "NETWORK", NETWORK_MESSAGE);
   }
   if (!res.ok) {
-    const err = (await res.json().catch(() => null)) as AccountErrorBody | null;
-    throw new AccountApiError(
-      res.status,
-      err?.code ?? "UNKNOWN",
-      err?.message ?? "알 수 없는 오류가 발생했어요.",
-      Array.isArray(err?.egressIps) ? err.egressIps : [],
-      credentialField(err?.field),
-    );
+    const err = await readErrorBody<AccountErrorBody>(res);
+    throw new AccountApiError(res.status, err?.code ?? "UNKNOWN", err?.message ?? "알 수 없는 오류가 발생했어요.", credentialField(err?.field));
   }
   const text = await res.text();
   return text ? (JSON.parse(text) as T) : null;
@@ -54,32 +37,10 @@ function mock<T>(make: () => T, delayMs = 250): Promise<T> {
   return new Promise((resolve) => setTimeout(resolve, delayMs)).then(make);
 }
 
+/** 로컬 사용자와 연결 상태. 화면이 보는 건 connection이다. */
 export function getMe(signal?: AbortSignal): Promise<Me> {
   if (USE_MOCK) return mock(() => mockAccount.me(), 120);
   return get("/api/me", signal);
-}
-
-export function getAuthProviders(signal?: AbortSignal): Promise<AuthProviders> {
-  if (USE_MOCK) return mock(() => mockAccount.providers());
-  return get("/api/auth/providers", signal);
-}
-
-export async function devLogin(nickname: string): Promise<void> {
-  if (USE_MOCK) return mock(() => mockAccount.login(nickname, "DEV"));
-  await send("POST", "/api/auth/dev-login", { nickname });
-}
-
-/** 카카오 로그인 시작 경로. 백엔드 OAuth2 왕복이라 <a>로 전체 페이지를 이동한다(next.config.ts rewrite). */
-export const KAKAO_LOGIN_PATH = "/oauth2/authorization/kakao";
-
-/** mock 전용: 카카오 왕복 없이 바로 로그인된 것으로 친다. */
-export function mockKakaoLogin(): Promise<void> {
-  return mock(() => mockAccount.login("카카오 사용자", "KAKAO"));
-}
-
-export async function logout(): Promise<void> {
-  if (USE_MOCK) return mock(() => mockAccount.logout());
-  await send("POST", "/api/auth/logout");
 }
 
 export function getTossSetup(signal?: AbortSignal): Promise<TossSetup> {
@@ -87,7 +48,13 @@ export function getTossSetup(signal?: AbortSignal): Promise<TossSetup> {
   return get("/api/connections/toss/setup", signal);
 }
 
-/** 키를 검증하고, 종합매매 계좌가 하나면 바로 연결한다. 키는 본문으로만 보내고 어디에도 남기지 않는다. */
+/** 이 맥의 공인 IP. WTS 허용 IP 관리에 등록할 값이다. 사용자가 누를 때만 부른다(엔진이 api.ipify.org에 묻는다). */
+export function getPublicIp(signal?: AbortSignal): Promise<PublicIp> {
+  if (USE_MOCK) return mock(() => mockAccount.publicIp(), 400);
+  return get("/api/desktop/public-ip", signal);
+}
+
+/** 키를 검증하고, 종합매매 계좌가 하나면 바로 연결한다. 키는 본문으로만 보내고 응답·로그에 남기지 않는다. */
 export async function connectToss(credentials: TossCredentials): Promise<ConnectResult> {
   if (USE_MOCK) return mock(() => mockAccount.connect(credentials), 900);
   const res = await send<ConnectResult>("POST", "/api/connections/toss", credentials);
@@ -101,26 +68,11 @@ export async function chooseTossAccount(credentials: TossCredentials, accountSeq
 
 /**
  * 연결한 계좌의 키만 새 키로 바꾼다(토큰 끊김·키 재발급). 새 키로 같은 계좌가 보여야 한다(아니면 400 INVALID_PARAMETER).
- * 오류는 연결과 같다(TOSS_INVALID_CREDENTIALS + field, TOSS_IP_NOT_ALLOWED + egressIps …).
+ * 오류는 연결과 같다(TOSS_INVALID_CREDENTIALS + field, TOSS_IP_NOT_ALLOWED …).
  */
 export async function replaceTossCredentials(credentials: TossCredentials): Promise<void> {
   if (USE_MOCK) return mock(() => mockAccount.replaceCredentials(credentials), 900);
   await send("PUT", "/api/connections/toss/credentials", credentials);
-}
-
-/** 다른 기기(PC)에서 로그인 상태로 이어 하기 위한 1회용 코드를 만든다. 로그인 필요. */
-export async function createHandoff(): Promise<HandoffToken> {
-  if (USE_MOCK) return mock(() => mockAccount.createHandoff());
-  const res = await send<HandoffToken>("POST", "/api/auth/handoff");
-  if (!res) throw new AccountApiError(0, "UNKNOWN", "이어 하기 링크를 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
-  return res;
-}
-
-/** 1회용 코드로 이 기기에 로그인한다(세션 쿠키). 쓴 코드·만료된 코드는 400 HANDOFF_INVALID. */
-export async function redeemHandoff(token: string): Promise<HandoffRedeemResult> {
-  if (USE_MOCK) return mock(() => mockAccount.redeemHandoff(token), 400);
-  const res = await send<HandoffRedeemResult>("POST", "/api/auth/handoff/redeem", { token });
-  return res ?? { nickname: "" };
 }
 
 export function getTossConnection(signal?: AbortSignal): Promise<TossConnection> {

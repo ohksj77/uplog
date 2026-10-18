@@ -4,6 +4,7 @@ import { buildSteps, KIND_LABEL, type WaterfallItem } from "@/components/insight
 import { WaterfallChart } from "@/components/insights/waterfall/WaterfallChart";
 import type { WaterfallInsight } from "@/lib/api/portfolio-types";
 import { formatDate, formatSignedWon, formatWon, formatWonApprox } from "@/lib/format";
+import { holdingHref } from "@/lib/routes";
 
 
 export function WaterfallBody({ data }: { data: WaterfallInsight }) {
@@ -114,7 +115,7 @@ function ItemTable({ items, total }: { items: WaterfallItem[]; total: number }) 
               <tr key={`${it.kind}-${it.instrument?.code ?? i}`} className="border-t border-border">
                 <th scope="row" className="px-3 py-2 text-left font-normal break-keep">
                   {it.instrument ? (
-                    <Link href={`/holdings/${encodeURIComponent(it.instrument.code)}`} className="underline-offset-2 hover:underline">
+                    <Link href={holdingHref(it.instrument.code)} className="underline-offset-2 hover:underline">
                       {it.label}
                     </Link>
                   ) : (

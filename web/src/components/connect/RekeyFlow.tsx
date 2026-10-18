@@ -3,20 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
-import { RequireLogin } from "@/components/auth/RequireLogin";
-import { ContinueOnPc } from "@/components/connect/ContinueOnPc";
-import { EgressIpList } from "@/components/connect/EgressIpList";
 import { KeyForm } from "@/components/connect/KeyForm";
+import { PublicIpCheck } from "@/components/connect/PublicIpCheck";
 import { card, primaryButton } from "@/components/connect/styles";
-import { ErrorBlock, LoadingBlock } from "@/components/ui/AsyncState";
+import { LoadingBlock } from "@/components/ui/AsyncState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ApiError } from "@/lib/api/client";
-import { getTossSetup, replaceTossCredentials } from "@/lib/api/account-client";
+import { replaceTossCredentials } from "@/lib/api/account-client";
 import type { TossCredentials } from "@/lib/api/account-types";
-import { useApi } from "@/lib/use-api";
 import { useMe } from "@/lib/use-me";
-
-const NEXT = "/connect?mode=rekey";
 
 /**
  * /connect?mode=rekey — 연결한 계좌는 그대로 두고 토스증권 키만 새로 넣는다(PUT /api/connections/toss/credentials).
@@ -30,9 +25,7 @@ export function RekeyFlow() {
         question="연결한 계좌와 기록은 그대로 두고, 키만 새로 바꿔요."
         back={{ href: "/settings/connection", label: "연결 설정" }}
       />
-      <RequireLogin next={NEXT}>
-        <RekeyBody />
-      </RequireLogin>
+      <RekeyBody />
     </>
   );
 }
@@ -40,12 +33,11 @@ export function RekeyFlow() {
 function RekeyBody() {
   const id = useId();
   const router = useRouter();
-  const { connectionStatus, refresh } = useMe();
-  const setup = useApi("toss-setup", (s) => getTossSetup(s));
+  const { loading, connectionStatus, refresh } = useMe();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const ips = setup.state.status === "success" ? setup.state.data.egressIps : [];
 
+  if (loading) return <LoadingBlock height={320} label="연결 상태를 확인하는 중" />;
   if (connectionStatus === "NONE") {
     return (
       <section className={`${card} space-y-3`}>
@@ -77,8 +69,6 @@ function RekeyBody() {
 
   return (
     <div className="space-y-6">
-      <ContinueOnPc watchConnection={false} nextPath={NEXT} />
-
       <section aria-labelledby={`${id}-when`} className={`${card} space-y-2 text-sm`}>
         <h2 id={`${id}-when`} className="font-semibold">
           이럴 때 키를 다시 넣어요
@@ -97,10 +87,10 @@ function RekeyBody() {
       <details className="rounded-2xl border border-border p-4 text-sm">
         <summary className="cursor-pointer font-medium outline-none focus-visible:outline-2 focus-visible:outline-accent">허용 IP 다시 확인하기</summary>
         <div className="mt-3 space-y-3">
-          <p className="text-muted break-keep">허용 IP 관리에 아래 IP가 그대로 있는지 확인해 주세요. 없으면 &lsquo;IP 추가&rsquo;로 더해 주세요.</p>
-          {setup.state.status === "loading" && <LoadingBlock height={64} label="등록할 IP를 불러오는 중" />}
-          {setup.state.status === "error" && <ErrorBlock error={setup.state.error} onRetry={setup.retry} />}
-          {setup.state.status === "success" && <EgressIpList ips={ips} />}
+          <p className="text-muted break-keep">
+            이 맥의 공인 IP를 확인하고, 허용 IP 관리에 그 IP가 있는지 봐 주세요. 없으면 &lsquo;IP 추가&rsquo;로 더해 주세요.
+          </p>
+          <PublicIpCheck />
         </div>
       </details>
 
@@ -112,10 +102,8 @@ function RekeyBody() {
           mode="rekey"
           busy={busy}
           error={error}
-          fallbackIps={ips}
           onBack={() => router.push("/settings/connection")}
           backLabel="취소"
-          loginNext={NEXT}
           onSubmit={submit}
         />
       </section>

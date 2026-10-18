@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { MARKET_LABEL } from "@/components/holding/format";
 import { PositionCard } from "@/components/holding/PositionCard";
@@ -19,6 +20,20 @@ import { MockBadge } from "@/components/holding/MockBadge";
 // 종목 상세 본체. 보유 현황 → 주가와 체결 → 보유 기간 → 매도 판정 → 수익 분해 → 체결 내역.
 
 const BACK = { href: "/", label: "수익 로그" };
+
+/** /holdings?code=XXX. 쿼리는 요청마다 달라서 페이지가 Suspense로 감싼다. */
+export function HoldingDetailFromUrl() {
+  const code = (useSearchParams().get("code") ?? "").trim();
+  if (!code) {
+    return (
+      <div>
+        <PageHeader title="종목 상세" back={BACK} />
+        <NotFound code="(없음)" />
+      </div>
+    );
+  }
+  return <HoldingDetailView code={code} />;
+}
 
 export function HoldingDetailView({ code }: { code: string }) {
   // mock이 동기로 던져도 거절된 Promise가 되게 한 번 감싼다

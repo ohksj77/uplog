@@ -9,6 +9,7 @@ import type { LogLevel, LogThresholds } from "@/components/log-grid/logic";
 import { BACKFILLED_TEXT, accountLogCells, accountThresholds, backfilledBands } from "@/components/portfolio-home/log-cells";
 import type { PortfolioLog } from "@/lib/api/portfolio-types";
 import { formatDate, formatWonShort } from "@/lib/format";
+import { dayHref } from "@/lib/routes";
 
 /** 그해 계좌 로그. 칸을 누르면(Enter) 그날 상세로 간다. */
 export function AccountLog({ log }: { log: PortfolioLog }) {
@@ -16,7 +17,7 @@ export function AccountLog({ log }: { log: PortfolioLog }) {
   const thresholds = useMemo(() => accountThresholds(log.days), [log.days]);
   const cells = useMemo(() => accountLogCells(log.days, thresholds), [log.days, thresholds]);
   const bands = useMemo(() => backfilledBands(log.days), [log.days]);
-  const onActivate = useCallback((i: number) => router.push(`/days/${log.days[i].date}`), [router, log.days]);
+  const onActivate = useCallback((i: number) => router.push(dayHref(log.days[i].date)), [router, log.days]);
   const missing = log.days.filter((d) => d.source === "MISSING").length;
 
   return (

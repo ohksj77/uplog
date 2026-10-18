@@ -1,10 +1,14 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
+// 맥 앱(docs/design/desktop-app.md): `next build`는 out/에 정적 export를 만들고, 로컬 엔진이 그 파일을 같은 출처로 서빙한다.
+// export에는 rewrites·headers·redirects가 없으므로, /api를 엔진으로 넘기는 rewrite는 `next dev`에서만 켠다
+// (개발용 엔진은 --uplog.desktop.dev-open=true로 :8080에 띄운다).
 const API_ORIGIN = process.env.API_ORIGIN ?? "http://localhost:8080";
 
-const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
+// cacheComponents(PPR)·partialPrefetching은 export와 함께 쓸 수 없어서("PPR cannot be enabled in export mode") 끈다.
+// 개발과 빌드가 같게 동작하도록 dev에서도 끈다. 모든 화면은 정적 셸 + 클라이언트에서 /api를 부르는 구조라 잃는 것이 없다.
+const base: NextConfig = {
   turbopack: {
     rules: {
       "*.css": {
@@ -13,15 +17,21 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  async rewrites() {
-    // 기본(afterFiles) rewrite라 /login 같은 앱 경로가 먼저 잡히고, 남은 OAuth2 경로만 백엔드로 간다.
-    // 카카오 로그인 왕복(/oauth2/authorization/kakao → /login/oauth2/code/kakao)을 같은 출처에서 처리한다.
-    return [
-      { source: "/api/:path*", destination: `${API_ORIGIN}/api/:path*` },
-      { source: "/oauth2/:path*", destination: `${API_ORIGIN}/oauth2/:path*` },
-      { source: "/login/oauth2/:path*", destination: `${API_ORIGIN}/login/oauth2/:path*` },
-    ];
-  },
 };
 
-export default nextConfig;
+export default function config(phase: string): NextConfig {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    return {
+      ...base,
+      async rewrites() {
+        return [{ source: "/api/:path*", destination: `${API_ORIGIN}/api/:path*` }];
+      },
+    };
+  }
+  return {
+    ...base,
+    output: "export",
+    // 엔진은 /x → x.html 순으로 찾는다. 기본(trailingSlash: false)이 x.html을 만든다.
+    images: { unoptimized: true },
+  };
+}

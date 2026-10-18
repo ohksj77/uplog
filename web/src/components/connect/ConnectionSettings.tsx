@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { RequireLogin } from "@/components/auth/RequireLogin";
 import { BackfillProgress, formatDateTime } from "@/components/connect/BackfillProgress";
 import { DisconnectButton } from "@/components/connect/DisconnectDialog";
+import { PublicIpCheck } from "@/components/connect/PublicIpCheck";
 import { useTossConnection } from "@/components/connect/use-toss-connection";
 import { card, primaryButton, secondaryButton, textLink } from "@/components/connect/styles";
 import { ErrorBlock, LoadingBlock } from "@/components/ui/AsyncState";
@@ -20,13 +20,11 @@ export function ConnectionSettings() {
   return (
     <div className="mx-auto max-w-xl">
       <PageHeader title="계좌 연결 설정" question="토스증권 연결 상태를 보고, 다시 수집하거나 연결을 해제해요." back={{ href: "/", label: "로그" }} />
-      <RequireLogin next="/settings/connection">
-        {/* ?rekeyed=1(키 다시 넣기 성공)은 요청마다 달라서 Suspense 안에서 읽는다. */}
-        <Suspense fallback={null}>
-          <RekeyedNotice />
-        </Suspense>
-        <SettingsBody />
-      </RequireLogin>
+      {/* ?rekeyed=1(키 다시 넣기 성공)은 요청마다 달라서 Suspense 안에서 읽는다. */}
+      <Suspense fallback={null}>
+        <RekeyedNotice />
+      </Suspense>
+      <SettingsBody />
     </div>
   );
 }
@@ -54,10 +52,12 @@ const STATUS_LABEL: Record<TossConnection["status"], string> = {
 };
 
 function SettingsBody() {
-  const { connectionStatus } = useMe();
+  const { state: meState, loading, connectionStatus, refresh } = useMe();
   const connected = connectionStatus !== "NONE";
   const { state, reload } = useTossConnection(connected);
 
+  if (loading) return <LoadingBlock height={260} label="연결 상태를 불러오는 중" />;
+  if (meState.status === "error") return <ErrorBlock error={meState.error} onRetry={() => void refresh()} />;
   const notConnected =
     !connected || (state.status === "error" && (state.error.code === "ACCOUNT_NOT_CONNECTED" || state.error.status === 404));
   if (notConnected) return <NoConnection />;
@@ -83,7 +83,7 @@ function SettingsBody() {
           <dd>{formatDateTime(c.lastSyncedAt)}</dd>
         </dl>
         {c.backfill && (c.backfill.state === "RUNNING" || c.backfill.state === "PENDING") && <BackfillProgress connection={c} />}
-        {c.status === "ACTIVE" && <p className="text-xs text-muted">매일 아침 7시에 전 거래일 기록을 받아 와요.</p>}
+        {c.status === "ACTIVE" && <p className="text-xs text-muted">매일 아침 7시에 전 거래일 기록을 받아 와요. 그때 맥이 꺼져 있었다면 다음에 업로그를 열 때 따라잡아요.</p>}
       </section>
 
       <section aria-labelledby="key-title" className="space-y-2 text-sm">
@@ -157,11 +157,12 @@ function LastError({ message, error }: { message: string | null; error: boolean 
       {message && <p className="break-keep">{message}</p>}
       <p className="text-muted break-keep">
         {ip
-          ? "토스증권 설정 > Open API > 허용 IP 관리에 업로그 서버 IP가 그대로 있는지 확인해 주세요. 키를 다시 넣는 화면에서 IP를 다시 볼 수 있어요."
+          ? "집 인터넷의 공인 IP가 바뀌었을 수 있어요. 아래에서 이 맥의 공인 IP를 확인하고, 토스증권 웹의 설정(톱니바퀴) > Open API > 허용 IP 관리에 그 IP가 없으면 'IP 추가'로 더한 뒤 다시 수집해 주세요."
           : keyProblem
             ? "같은 키를 다른 도구에서도 쓰거나 키를 재발급·만료했다면 업로그의 접속이 끊겨요. 업로그 전용 키를 새로 발급해 다시 넣어 주세요. 계좌와 기록은 그대로예요."
             : "잠시 뒤 다시 수집해 보세요. 계속되면 키를 재발급했거나 만료되지 않았는지 확인하고, 새 키를 다시 넣어 주세요."}
       </p>
+      {ip && <PublicIpCheck />}
       {(error || keyProblem || ip) && (
         <Link href="/connect?mode=rekey" className={`${primaryButton} w-full sm:w-auto`}>
           연결 다시 살리기

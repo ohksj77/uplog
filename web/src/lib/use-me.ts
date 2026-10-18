@@ -5,8 +5,9 @@ import { ApiError } from "@/lib/api/client";
 import { getMe } from "@/lib/api/account-client";
 import type { Me } from "@/lib/api/account-types";
 
-// 로그인한 사용자와 연결 상태(GET /api/me). 헤더·홈·연결 화면이 같은 값을 나눠 쓰도록 모듈 하나에 둔다.
-// 로그인·로그아웃·연결·해제 뒤에는 refreshMe()로 다시 불러온다. 다시 부르는 동안에는 이전 값을 그대로 보여 준다.
+// 토스 연결 상태(GET /api/me). 홈·연결·시뮬레이션 화면이 같은 값을 나눠 쓰도록 모듈 하나에 둔다.
+// 맥 앱에는 로그인이 없어서 me.user(로컬 사용자)는 쓰지 않고 connection만 본다.
+// 연결·해제 뒤에는 refreshMe()로 다시 불러온다. 다시 부르는 동안에는 이전 값을 그대로 보여 준다.
 
 export type MeState =
   | { status: "loading" }
@@ -62,8 +63,8 @@ export function useMe() {
   const me = state.status === "success" ? state.data : null;
   return {
     state,
-    /** 불러오기 전이면 undefined, 비로그인(또는 /api/me 실패)이면 null */
-    user: state.status === "success" ? state.data.user : state.status === "error" ? null : undefined,
+    /** /api/me를 아직 불러오는 중이면 true. 실패하면 연결 없음(NONE)으로 본다. */
+    loading: state.status === "loading",
     connectionStatus: me?.connection?.status ?? "NONE",
     refresh: refreshMe,
   };

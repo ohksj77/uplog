@@ -1,4 +1,4 @@
-// 로그인·연결 화면이 함께 쓰는 버튼·입력 클래스. 색은 토큰만 쓴다.
+// 연결 화면들이 함께 쓰는 버튼·입력 클래스. 색은 토큰만 쓴다.
 
 const focus = "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 

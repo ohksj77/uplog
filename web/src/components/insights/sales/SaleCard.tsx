@@ -5,6 +5,7 @@ import { Signed } from "@/components/result/Signed";
 import { VerdictChip } from "@/components/insights/sales/VerdictChip";
 import type { Sale, SaleHorizon } from "@/lib/api/portfolio-types";
 import { formatDate, formatPercent, formatSignedWon, formatWon } from "@/lib/format";
+import { holdingHref } from "@/lib/routes";
 
 // 매도 한 건: 매도 전 실선, 매도 뒤 점선, 매도가 기준선, 판정.
 
@@ -21,7 +22,7 @@ export function SaleCard({ sale, horizon, showInstrument = true }: { sale: Sale;
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {showInstrument && (
-            <Link href={`/holdings/${inst.code}`} className="block truncate font-semibold hover:underline">
+            <Link href={holdingHref(inst.code)} className="block truncate font-semibold hover:underline">
               {inst.name}
             </Link>
           )}

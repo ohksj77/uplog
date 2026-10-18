@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { loginHref } from "@/components/auth/next-path";
 import { BackfillProgress } from "@/components/connect/BackfillProgress";
 import { useTossConnection } from "@/components/connect/use-toss-connection";
 import { refreshMe, useMe } from "@/lib/use-me";
@@ -11,19 +10,18 @@ const bannerLink = "shrink-0 rounded font-semibold text-accent underline-offset-
 
 /**
  * 홈 위쪽 안내 띠.
- * - 샘플 계좌를 보는 비로그인 → 로그인 권유
+ * - 연결 전이라 샘플 계좌를 보는 중 → 연결 권유
  * - 연결했는데 계좌가 샘플(개발용 가짜 토스 서버) → 가짜 데이터라고 알림
- * - 로그인했지만 연결 전인데 샘플을 보는 경우(mock) → 연결 권유
  * - 역산 중 → 진행률. 끝나면 onBackfillDone으로 홈 데이터를 다시 부른다.
  * - 연결에 문제(ERROR) → 마지막 오류와 "연결 다시 살리기"(키 다시 넣기)
  */
 export function HomeAccountBanner({ sample, onBackfillDone }: { sample: boolean; onBackfillDone: () => void }) {
-  const { user, connectionStatus } = useMe();
-  if (user === undefined) return null;
-  if (user && connectionStatus === "BACKFILLING") return <BackfillBanner onDone={onBackfillDone} />;
-  if (user && connectionStatus === "ERROR") return <RecoveryBanner />;
+  const { loading, connectionStatus } = useMe();
+  if (loading) return null;
+  if (connectionStatus === "BACKFILLING") return <BackfillBanner onDone={onBackfillDone} />;
+  if (connectionStatus === "ERROR") return <RecoveryBanner />;
   if (!sample) return null;
-  if (user && connectionStatus === "ACTIVE") {
+  if (connectionStatus === "ACTIVE") {
     // 연결한 계좌가 샘플이면 개발용 가짜 토스 서버에서 온 데이터다
     return (
       <aside aria-label="가짜 데이터 안내" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl border-2 border-dashed border-border px-4 py-3 text-sm">
@@ -36,16 +34,10 @@ export function HomeAccountBanner({ sample, onBackfillDone }: { sample: boolean;
   }
   return (
     <aside aria-label="샘플 계좌 안내" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl border border-border px-4 py-3 text-sm">
-      <p className="break-keep">샘플 계좌를 보고 있어요.</p>
-      {user ? (
-        <Link href="/connect" className={bannerLink}>
-          토스증권 계좌 연결하고 내 계좌로 보기
-        </Link>
-      ) : (
-        <Link href={loginHref("/")} className={bannerLink}>
-          로그인하고 내 계좌로 보기
-        </Link>
-      )}
+      <p className="break-keep">샘플 계좌를 보고 있어요. 연결하면 내 계좌로 바뀌어요.</p>
+      <Link href="/connect" className={bannerLink}>
+        토스증권 계좌 연결하기
+      </Link>
     </aside>
   );
 }
@@ -102,26 +94,25 @@ function BackfillBanner({ onDone }: { onDone: () => void }) {
 
 /** 계좌가 없을 때(ACCOUNT_NOT_CONNECTED) 일반 오류 대신 보여 주는 연결 안내. */
 export function ConnectCtaCard() {
-  const { user } = useMe();
-  const loggedIn = Boolean(user);
   return (
     <section aria-labelledby="connect-cta-title" className="space-y-4 rounded-2xl bg-surface p-5">
       <div>
         <h2 id="connect-cta-title" className="text-lg font-semibold">
-          {loggedIn ? "토스증권 계좌를 연결해 주세요" : "로그인하고 내 계좌를 연결해 보세요"}
+          토스증권 계좌를 연결해 주세요
         </h2>
         <p className="mt-1 text-sm text-muted break-keep">연결하면 계좌를 만든 뒤의 하루하루 손익이 로그로 쌓여요.</p>
       </div>
       <ul className="space-y-1.5 text-sm text-muted break-keep">
         <li>토스증권 웹(WTS)에서 Open API 키를 발급해 붙여 넣으면 돼요. 세 단계예요.</li>
         <li>업로그는 조회만 해요. 주문하지 않아요.</li>
+        <li>키는 이 맥의 키체인으로 보호돼요. 업로그 서버는 없어요 — 키와 기록은 이 맥 밖으로 나가지 않아요.</li>
         <li>연결을 해제하면 키를 바로 지워요.</li>
       </ul>
       <Link
-        href={loggedIn ? "/connect" : loginHref("/connect")}
+        href="/connect"
         className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-accent px-5 text-sm font-semibold text-white outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto"
       >
-        {loggedIn ? "계좌 연결하기" : "로그인하고 연결하기"}
+        토스증권 계좌 연결하기
       </Link>
     </section>
   );

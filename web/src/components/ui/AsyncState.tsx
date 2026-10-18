@@ -34,7 +34,7 @@ export function ErrorBlock({ error, onRetry }: { error: ApiError; onRetry?: () =
       <p className="mt-2 text-sm text-muted">{error.message}</p>
       {notConnected && (
         <Link href="/connect" className="mt-6 inline-flex h-11 items-center rounded-xl bg-accent px-5 text-sm font-semibold text-white">
-          계좌 연결하기
+          토스증권 계좌 연결하기
         </Link>
       )}
       {onRetry && retryable && (
