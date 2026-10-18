@@ -47,11 +47,20 @@ for _ in $(seq 1 120); do
   kill -0 "$ENGINE_PID" 2>/dev/null || break
   sleep 0.5
 done
+# 위젯은 엔진이 쓰는 widget.json만 읽는다. 옛 jar가 섞이면 위젯이 비므로, 데모 계좌 스냅샷이 써지는지까지 본다.
+widget_ok=0
+if [[ $ok == 1 ]]; then
+  for _ in $(seq 1 60); do
+    if [[ -s "$CHECK_DIR/widget/widget.json" ]]; then widget_ok=1; break; fi
+    sleep 0.5
+  done
+fi
 kill "$ENGINE_PID" 2>/dev/null || true
 wait "$ENGINE_PID" 2>/dev/null || true
 rm -rf "$CHECK_DIR"
 [[ $ok == 1 ]] || { echo "런타임으로 엔진이 뜨지 않습니다. 모듈 목록(desktop/scripts/build-runtime.sh)을 확인하세요." >&2; exit 1; }
-echo "health 200"
+[[ $widget_ok == 1 ]] || { echo "엔진이 위젯 스냅샷(widget/widget.json)을 쓰지 않습니다. 엔진 jar가 최신인지(SKIP_ENGINE) 확인하세요." >&2; exit 1; }
+echo "health 200, widget.json 있음"
 
 step "Electron 리소스 모으기 (desktop/build)"
 rm -rf "$DESKTOP/build/web" "$DESKTOP/build/engine.jar"
