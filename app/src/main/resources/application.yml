@@ -9,10 +9,16 @@ spring:
     username: ${UPLOG_DB_USERNAME:uplog}
     password: ${UPLOG_DB_PASSWORD:uplog}
   flyway:
-    # 마이그레이션은 각 모듈의 db/migration에 둔다. 버전은 모듈별 구간: market-data V1–V99, portfolio V100–V199.
+    # 마이그레이션은 각 모듈의 db/migration에 둔다. 버전은 모듈별 구간:
+    # market-data V1–V99, portfolio V100–V199, user-auth V200–V299, credential V300–V399, ingest V400–V499.
     # 앞 구간 모듈이 나중에 새 버전을 추가해도 적용되도록 out-of-order를 켠다.
     locations: classpath:db/migration
     out-of-order: true
+
+server:
+  # Next rewrites(/oauth2/**, /login/oauth2/**)를 거쳐 오는 요청의 X-Forwarded-Host/Proto로 카카오 redirect_uri를 만든다.
+  # 앞단 프록시가 X-Forwarded-*를 덮어쓰는 구성에서만 켜 둔다.
+  forward-headers-strategy: framework
 
 management:
   endpoints:
@@ -25,6 +31,27 @@ uplog:
     public-data:
       # 공공데이터포털 금융위원회_증권상품시세정보 인증키(Decoding). 비어 있으면 ETF 시세 수집 잡이 뜨지 않는다.
       service-key: ${UPLOG_PUBLIC_DATA_SERVICE_KEY:}
+  auth:
+    # 세션 JWT(HS256) 서명 키, 32바이트 이상. 비어 있으면 실행마다 무작위 키(재시작하면 모두 로그아웃).
+    session-secret: ${UPLOG_SESSION_SECRET:}
+    # 운영(HTTPS)에서는 true
+    secure-cookie: ${UPLOG_SECURE_COOKIE:false}
+    session-ttl: 14d
+    # 상태를 바꾸는 요청에 허용하는 Origin(쉼표로 구분). 요청 자신의 출처는 항상 허용한다.
+    allowed-origins: ${UPLOG_ALLOWED_ORIGINS:http://localhost:3000}
+    kakao:
+      # 둘 다 있을 때만 카카오 로그인(/oauth2/authorization/kakao)이 켜진다.
+      client-id: ${UPLOG_KAKAO_CLIENT_ID:}
+      client-secret: ${UPLOG_KAKAO_CLIENT_SECRET:}
+      redirect-uri: ${UPLOG_KAKAO_REDIRECT_URI:{baseUrl}/login/oauth2/code/{registrationId}}
+  credential:
+    # 증권사 키 봉투 암호화의 마스터키(base64, 32바이트). local 프로필은 없으면 고정 개발 키를 쓴다.
+    master-key: ${UPLOG_MASTER_KEY:}
+  # 토스를 호출하는 서버의 고정 IP(쉼표로 구분). 연결 안내에서 사용자가 토스 허용 IP에 등록한다.
+  egress-ips: ${UPLOG_EGRESS_IPS:}
+  connection:
+    key-page-url: https://tossinvest.com
+    sync-interval: 1h
 
 ---
 spring:
@@ -45,3 +72,9 @@ spring:
     url: jdbc:h2:mem:uplog;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
     username: sa
     password: ""
+
+uplog:
+  auth:
+    # 개발용 고정 세션 키(운영 금지). 재시작해도 로그인이 유지된다.
+    session-secret: ${UPLOG_SESSION_SECRET:uplog-local-dev-session-secret-not-for-production}
+  egress-ips: ${UPLOG_EGRESS_IPS:127.0.0.1}

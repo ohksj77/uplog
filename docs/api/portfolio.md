@@ -4,7 +4,7 @@
 공통 규칙(금액·비율·날짜·오류 형식)은 [simulation.md](simulation.md)와 같다.
 
 - 금액은 **원화 정수**. 해외 종목의 현지 통화 값은 `…Local` 접미사(소수 허용)를 붙인다.
-- 계좌는 아직 로그인이 없으므로 "현재 계좌" 하나다. `local` 프로필에서는 합성 데모 계좌(`account.sample = true`)를 쓴다.
+- 계좌는 요청자의 계좌다: 비로그인은 데모 계좌(`account.sample = true`, `local` 프로필에서만 시드), 로그인은 연결한 자기 계좌. 없으면 `ACCOUNT_NOT_CONNECTED`([design/account-connection.md](../design/account-connection.md)).
 - 오류 코드 추가: `ACCOUNT_NOT_CONNECTED`(404), `INSTRUMENT_NOT_FOUND`(404), `DATE_NOT_FOUND`(404: 거래일이 아니거나 기록 없음)
 
 ## 공통 타입
