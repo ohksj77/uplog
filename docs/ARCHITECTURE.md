@@ -32,10 +32,10 @@
 | `core` | `Money`, `CurrencyCode`, 거래일 캘린더(KR/US) | MVP |
 | `calc-engine` | 일별 손익, TWR, 이동평균 실현손익, 벤치마크 리플레이, 시뮬레이션. 스프링·DB 의존 없는 순수 자바 | MVP |
 | `user-auth` | 사용자·외부 계정(`app_user`, `user_identity`), 세션(서명한 JWT, HttpOnly 쿠키 `uplog_session`, 14일), 카카오 OAuth2 로그인(env 설정 시)·`local` 개발용 로그인, Spring Security(상태 없음, `Origin` 검사로 CSRF 방어, 401 JSON), `CurrentUser` | MVP |
-| `broker` | `BrokerPort` + `TossBrokerAdapter`, API 그룹별 레이트리밋, 재시도 | MVP |
+| `broker-toss` | `BrokerPort`·`BrokerVerifier`의 토스 구현(`TossBrokerAdapter`): clientId별 토큰 캐시(401 `token-revoked`면 한 번만 재발급), 그룹별 토큰 버킷 레이트리밋(`X-RateLimit-Remaining`이 낮으면 늦춤, 429는 `Retry-After`), 5xx 백오프, 나가는 요청 허용 목록(토큰 발급 + 조회 GET 7종 외에는 보내기 전에 차단). `local` 전용 가짜 토스 서버 `/__fake-toss/**` | MVP |
 | `credential` | 증권사 키 봉투 암호화(`broker_credential`: 비밀마다 AES-256-GCM 데이터키, 데이터키는 `MasterKeyProvider`로 감쌈 — 지금은 env `UPLOG_MASTER_KEY`, KMS는 자리만), `CredentialReader`·`CredentialStore` 구현, 해제 시 즉시 파기 | MVP |
 | `market-data` | 기능 A·벤치마크용 시세. 토스 시세와 물리적으로 분리(재배포 리스크) | MVP |
-| `ingest` | 장 마감 후 유저별 수집 잡, 가입 전 기간 역산(backfill) | MVP |
+| `ingest` | 작업 큐(`ingest_job`, `FOR UPDATE SKIP LOCKED`, 지수 백오프 3회 → 실패 시 `collection_gap`), 역산(체결 전부·일봉·환율, 역산 구간 최소 입금 추정), 일일 수집(07:00 KST: 새 체결·보유·현금 스냅샷, 현금흐름 추정 `INFERRED`, 보유 대사), `IngestScheduler`·`AccountDataPurger` 구현 | MVP |
 | `simulation` | 기능 A API, 파라미터 해시 캐시 | MVP |
 | `portfolio` (계획상 `portfolio-view`) | 기능 B API(로그·보유·일자 상세·인사이트), 원시 테이블, `BrokerPort`, 로컬 데모 계좌, 요청자 → 계좌 해석(비로그인 = 데모), 연결 API(`/api/me`, `/api/connections/toss/**`)와 모듈 사이 계약(`connect` 패키지). 계산은 `calc-engine`의 `com.uplog.calc.portfolio` | MVP |
 | `share` | 공유 카드 이미지(SVG → PNG), 공유 링크 | MVP |
@@ -45,8 +45,8 @@
 
 기능 A(시뮬레이션)와 기능 B(내 계좌)는 같은 `calc-engine`을 쓴다. 적립식 시뮬레이션은 "가상의 현금흐름을 벤치마크에 리플레이"한 것이고, 벤치마크 비교는 "내 실제 현금흐름을 리플레이"한 것이다.
 
-모듈은 구현할 때 하나씩 추가한다. 현재 저장소에는 `core`, `calc-engine`, `market-data`, `simulation`, `portfolio`, `user-auth`, `credential`, `app`(백엔드)과 `web`(Next.js 프론트엔드)이 있다.
-토스 OpenAPI가 확인 전이라 `broker`·`ingest`는 아직 없고, `portfolio`의 `BrokerPort`(구현 없음)와 `local` 프로필의 합성 데모 계좌로 기능 B를 띄운다.
+모듈은 구현할 때 하나씩 추가한다. 현재 저장소에는 `core`, `calc-engine`, `market-data`, `simulation`, `portfolio`, `user-auth`, `credential`, `broker-toss`, `ingest`, `app`(백엔드)과 `web`(Next.js 프론트엔드)이 있다.
+토스 Open API는 공개 명세(1.2.24)로 구현했고 실제 키로는 아직 호출해 보지 않았다(docs/toss-openapi-notes.md). `local`은 같은 앱의 가짜 토스 서버로 연결 → 역산 → 로그까지 돈다.
 일별 계좌 값은 체결·입출금·배당을 시세에 리플레이(`PortfolioReplay`)해 만들고, 이 함수가 그대로 가입 전 기간 역산(backfill)이 된다.
 Flyway 버전은 모듈별 구간을 쓴다: `market-data` V1–V99, `portfolio` V100–V199, `user-auth` V200–V299, `credential` V300–V399, `ingest` V400–V499(`out-of-order` 켬).
 로그인·계좌 연결 설계는 [design/account-connection.md](design/account-connection.md).

@@ -1,3 +1,3 @@
 rootProject.name = "uplog"
 
-include("core", "calc-engine", "market-data", "simulation", "portfolio", "user-auth", "credential", "app")
+include("core", "calc-engine", "market-data", "simulation", "portfolio", "user-auth", "credential", "broker-toss", "ingest", "app")

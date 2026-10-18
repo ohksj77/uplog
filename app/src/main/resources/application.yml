@@ -52,6 +52,19 @@ uplog:
   connection:
     key-page-url: https://tossinvest.com
     sync-interval: 1h
+  toss:
+    # 토스증권 Open API. 클라이언트는 POST /oauth2/token과 조회용 GET만 보낼 수 있다(허용 목록).
+    base-url: ${UPLOG_TOSS_BASE_URL:https://openapi.tossinvest.com}
+    max-retries: 3
+    # 그룹별 문서 한도(초당)에 곱하는 값. 운영은 1.
+    rate-limit-multiplier: 1
+  ingest:
+    # 이 인스턴스가 수집 큐를 폴링할지. 워커를 고정 IP 뒤 batch 인스턴스로만 돌리려면 api 쪽에서 false.
+    worker-enabled: ${UPLOG_INGEST_WORKER_ENABLED:true}
+    poll-interval: 2s
+    max-attempts: 3
+    backoff: 1m
+    daily-cron: "0 0 7 * * TUE-SAT"
 
 ---
 spring:
@@ -78,3 +91,13 @@ uplog:
     # 개발용 고정 세션 키(운영 금지). 재시작해도 로그인이 유지된다.
     session-secret: ${UPLOG_SESSION_SECRET:uplog-local-dev-session-secret-not-for-production}
   egress-ips: ${UPLOG_EGRESS_IPS:127.0.0.1}
+  toss:
+    # 같은 앱의 가짜 토스 서버(/__fake-toss/**). 포트는 서버가 뜬 뒤 정해지므로 요청 때마다 읽는다.
+    base-url: http://localhost:${local.server.port:${server.port:8080}}/__fake-toss
+    # 가짜 서버라 한도를 크게 둔다(역산의 일별 환율 수백 건을 몇 초 안에)
+    rate-limit-multiplier: 20
+    fake-server:
+      enabled: true
+      rate-limit-multiplier: 20
+  ingest:
+    backoff: 5s
