@@ -132,7 +132,7 @@ struct Title: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            Text("업로그")
+            Text("UpLog")
                 .font(.system(size: 11, weight: .bold))
             if showAccount, let snapshot {
                 Text(snapshot.accountName)
@@ -273,7 +273,7 @@ struct UplogLogView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(snapshot?.accessibilitySummary(now: now) ?? "업로그 로그. 업로그 앱을 열어 주세요")
+        .accessibilityLabel(snapshot?.accessibilitySummary(now: now) ?? "UpLog 로그. UpLog 앱을 열어 주세요")
     }
 
     private func recent(_ s: Snapshot, _ n: Int) -> [Snapshot.Week] {
@@ -335,7 +335,7 @@ struct UplogLogView: View {
     private var placeholder: some View {
         VStack(alignment: .leading, spacing: 6) {
             Title(snapshot: nil)
-            Text("업로그 앱을 열어 주세요")
+            Text("UpLog 앱을 열어 주세요")
                 .font(.system(size: family == .small ? 13 : 15, weight: .semibold))
             Text("앱을 한 번 열면 매일의 손익 로그가 여기 보여요.")
                 .font(.system(size: 11))

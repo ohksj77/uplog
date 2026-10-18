@@ -80,13 +80,13 @@ runtime/bin/java -jar engine.jar \
 
 **화면(web)**: `next build`가 `out/`에 정적 export를 만든다(`output: "export"`, 개발 중 rewrites는 `next dev`에서만). 동적 경로는 쿼리로(`/days?date=`, `/holdings?code=`). 로그인·이어 하기(`/login`, `/continue`)와 사용자 메뉴는 없앤다.
 
-## 위젯 ("업로그 로그")
+## 위젯 ("UpLog 로그")
 
 맥 바탕화면·알림 센터 위젯(WidgetKit). 소스는 `widget/`(SwiftUI), Xcode 없이 `swiftc`로 빌드한다. 서버·네트워크 없이 **엔진이 쓴 파일 하나**만 읽는다.
 
 **데이터 경로**: Team ID가 없어 App Group을 못 쓴다. 엔진이 `{data-dir}/widget/widget.json`에 쓰고(기본 `~/Library/Application Support/uplog/widget/widget.json`),
 샌드박스 위젯은 entitlement `com.apple.security.temporary-exception.files.home-relative-path.read-only = ["/Library/Application Support/uplog/widget/"]`로 그 폴더만 읽는다.
-샌드박스 안에서는 `NSHomeDirectory()`가 컨테이너를 가리키므로 실제 홈은 `getpwuid(getuid())`로 찾는다. 파일이 없거나 못 읽으면 "업로그 앱을 열어 주세요".
+샌드박스 안에서는 `NSHomeDirectory()`가 컨테이너를 가리키므로 실제 홈은 `getpwuid(getuid())`로 찾는다. 파일이 없거나 못 읽으면 "UpLog 앱을 열어 주세요".
 그래서 위젯은 **기본 data-dir**에서만 데이터를 본다(개발용 임시 data-dir로 띄운 엔진은 위젯에 보이지 않는다).
 
 **언제 쓰나** (`WidgetSnapshotWriter`, portfolio 모듈 `com.uplog.portfolio.widget`): 엔진이 뜬 직후, 계좌·시세 데이터 번호(`PortfolioDataVersion`·`PriceDataVersion`)나

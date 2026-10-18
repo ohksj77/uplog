@@ -6,7 +6,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 맥 위젯("업로그 로그")이 읽는 스냅샷({@code {data-dir}/widget/widget.json}). 형식은 docs/design/desktop-app.md "위젯".
+ * 맥 위젯("UpLog 로그")이 읽는 스냅샷({@code {data-dir}/widget/widget.json}). 형식은 docs/design/desktop-app.md "위젯".
  * 키·토큰·계좌번호는 넣지 않는다.
  *
  * @param asOf 마지막으로 기록한 거래일(MISSING 제외). 기록이 없으면 null

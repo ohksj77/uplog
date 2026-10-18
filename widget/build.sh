@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 업로그 로그 위젯(WidgetKit 확장)을 Xcode 없이 swiftc로 빌드한다.
+# UpLog 로그 위젯(WidgetKit 확장)을 Xcode 없이 swiftc로 빌드한다.
 #   widget/build.sh                       → widget/build/UplogWidget.appex (번들 id dev.uplog.app.widget)
 #   BUNDLE_ID=… OUT=… widget/build.sh     → 다른 번들 id·위치(test-host.sh가 쓴다)
 # 필요: Swift 툴체인 + macOS SDK(Command Line Tools면 된다). arm64, macOS 14 이상.
@@ -44,7 +44,7 @@ cat > "$APPEX/Contents/Info.plist" <<PLIST
   <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
   <key>CFBundleExecutable</key><string>$NAME</string>
   <key>CFBundleName</key><string>$NAME</string>
-  <key>CFBundleDisplayName</key><string>업로그 로그</string>
+  <key>CFBundleDisplayName</key><string>UpLog 로그</string>
   <key>CFBundlePackageType</key><string>XPC!</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>

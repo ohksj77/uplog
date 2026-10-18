@@ -1,4 +1,4 @@
-// WidgetKit 진입점: "업로그 로그" 위젯(작게·중간·크게). 화면은 Views.swift.
+// WidgetKit 진입점: "UpLog 로그" 위젯(작게·중간·크게). 화면은 Views.swift.
 import SwiftUI
 import WidgetKit
 
@@ -49,7 +49,7 @@ struct UplogLogWidget: Widget {
         StaticConfiguration(kind: "dev.uplog.log", provider: LogProvider()) { entry in
             LogEntryView(entry: entry)
         }
-        .configurationDisplayName("업로그 로그")
+        .configurationDisplayName("UpLog 로그")
         .description("매일의 손익을 잔디처럼. 빨강은 번 날, 파랑은 잃은 날이에요.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
