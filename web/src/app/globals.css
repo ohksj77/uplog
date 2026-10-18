@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * 디자인 토큰. 한국 관례대로 이익 = 빨강, 손실 = 파랑.
+ * 디자인 토큰. 이익 = 초록, 손실 = 빨강 (GitHub 로그처럼).
  * 로그 단계: 1(옅음) → 4(진함). 0은 변동 없음/데이터 없음.
  */
 :root {
@@ -12,22 +12,22 @@
   --border: #e5e8eb;
   --accent: #3182f6;
 
-  --gain: #f04452;
-  --loss: #3182f6;
+  --gain: #1a7f37;
+  --loss: #d1242f;
 
   --log-empty: #ebedf0;
   --log-zero: #d9dde3;
-  --gain-1: #ffd6d9;
-  --gain-2: #ff9aa2;
-  --gain-3: #f45c68;
-  --gain-4: #c8102e;
-  --loss-1: #d3e4fd;
-  --loss-2: #8fbaf8;
-  --loss-3: #4a8ef2;
-  --loss-4: #1450b8;
+  --gain-1: #9be9a8;
+  --gain-2: #40c463;
+  --gain-3: #30a14e;
+  --gain-4: #216e39;
+  --loss-1: #ffcdd0;
+  --loss-2: #ff9a9f;
+  --loss-3: #f0525a;
+  --loss-4: #c21d27;
 
   --series-lump: #7c4dff;
-  --series-recurring: #0d9f7a;
+  --series-recurring: #c27c0e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -39,22 +39,22 @@
     --border: #2c2f36;
     --accent: #4c95ff;
 
-    --gain: #ff5f6b;
-    --loss: #4c95ff;
+    --gain: #3fb950;
+    --loss: #f85149;
 
     --log-empty: #1f2228;
     --log-zero: #2c3038;
-    --gain-1: #4a1d22;
-    --gain-2: #8a2a34;
-    --gain-3: #d2404d;
-    --gain-4: #ff6b76;
-    --loss-1: #16294a;
-    --loss-2: #1f4b8f;
-    --loss-3: #3a7ae0;
-    --loss-4: #78afff;
+    --gain-1: #0e4429;
+    --gain-2: #006d32;
+    --gain-3: #26a641;
+    --gain-4: #39d353;
+    --loss-1: #4c1d20;
+    --loss-2: #8e2a30;
+    --loss-3: #d9444c;
+    --loss-4: #ff7b72;
 
     --series-lump: #9677ff;
-    --series-recurring: #139c79;
+    --series-recurring: #e3a33a;
   }
 }
 

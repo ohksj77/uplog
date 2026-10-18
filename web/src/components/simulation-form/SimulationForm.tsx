@@ -79,7 +79,7 @@ export function SimulationForm({ initial = DEFAULT_PARAMS }: SimulationFormProps
       ...(frequency === "WEEKLY" && { dayOfWeek }),
       ...(frequency === "MONTHLY" && { dayOfMonth }),
     };
-    startTransition(() => router.push(`/simulate?${toSearchParams(params)}`));
+    startTransition(() => router.push(`/simulation/result?${toSearchParams(params)}`));
   }
 
   const etfInputId = `${ids}-etf`;

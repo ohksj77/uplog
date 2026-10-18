@@ -4,7 +4,7 @@ import { mockEtfs, mockSimulation } from "@/lib/api/mock";
 
 // 브라우저에서 호출한다. /api/* 는 next.config.ts의 rewrite로 백엔드(API_ORIGIN)에 전달된다.
 // NEXT_PUBLIC_USE_MOCK=1 이면 백엔드 없이 mock 데이터를 쓴다.
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "1";
+export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "1";
 
 export class ApiError extends Error {
   constructor(
@@ -16,7 +16,7 @@ export class ApiError extends Error {
   }
 }
 
-async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
+export async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, { signal, headers: { Accept: "application/json" } });

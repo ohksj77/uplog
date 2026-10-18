@@ -25,7 +25,7 @@ export function ResultError({ title, message, onRetry, backQuery }: ResultErrorP
           </button>
         )}
         <Link
-          href={backQuery ? `/?${backQuery}` : "/"}
+          href={backQuery ? `/simulation?${backQuery}` : "/simulation"}
           className="inline-flex h-11 items-center rounded-xl border border-border bg-background px-5 text-sm font-semibold"
         >
           조건 다시 고르기

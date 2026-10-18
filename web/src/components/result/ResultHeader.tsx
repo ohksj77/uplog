@@ -21,7 +21,7 @@ export function ResultHeader({ params, from, to }: ResultHeaderProps) {
       <h1 className="text-2xl font-bold tracking-tight break-keep">{describePlan(params)}했다면</h1>
       <div className="flex flex-wrap items-center gap-2">
         <Link
-          href={`/?${toSearchParams(params)}`}
+          href={`/simulation?${toSearchParams(params)}`}
           className="inline-flex h-9 items-center rounded-lg bg-surface px-3 text-sm font-medium"
         >
           조건 바꾸기
