@@ -71,22 +71,38 @@ export type AccountErrorCode =
   | "TOSS_NO_BROKERAGE_ACCOUNT"
   | "TOSS_RATE_LIMITED"
   | "TOSS_UNAVAILABLE"
-  | "ALREADY_CONNECTED";
+  | "ALREADY_CONNECTED"
+  | "HANDOFF_INVALID";
+
+/** TOSS_INVALID_CREDENTIALS에서 토스가 어느 값이 틀렸는지 알려 줄 때 */
+export type CredentialField = "clientId" | "clientSecret";
 
 export type AccountErrorBody = {
   code: AccountErrorCode | string;
   message: string;
   egressIps?: string[];
+  field?: CredentialField;
 };
 
-/** 연결 API 오류. TOSS_IP_NOT_ALLOWED는 등록해야 할 IP를 함께 싣는다. */
+/** 연결 API 오류. TOSS_IP_NOT_ALLOWED는 등록해야 할 IP를, 키 오류는 틀린 칸(field)을 함께 싣는다. */
 export class AccountApiError extends ApiError {
   constructor(
     status: number,
     code: string,
     message: string,
     readonly egressIps: string[] = [],
+    readonly field: CredentialField | null = null,
   ) {
     super(status, code, message);
   }
 }
+
+/** 다른 기기(PC)에서 이어 하기 1회용 코드. 10분 동안 한 번만 쓸 수 있다. */
+export type HandoffToken = {
+  token: string;
+  expiresAt: string; // ISO
+};
+
+export type HandoffRedeemResult = {
+  nickname: string;
+};

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { RequireLogin } from "@/components/auth/RequireLogin";
 import { BackfillProgress, formatDateTime } from "@/components/connect/BackfillProgress";
 import { DisconnectButton } from "@/components/connect/DisconnectDialog";
 import { useTossConnection } from "@/components/connect/use-toss-connection";
-import { card, primaryButton, secondaryButton } from "@/components/connect/styles";
+import { card, primaryButton, secondaryButton, textLink } from "@/components/connect/styles";
 import { ErrorBlock, LoadingBlock } from "@/components/ui/AsyncState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ApiError } from "@/lib/api/client";
@@ -20,8 +21,28 @@ export function ConnectionSettings() {
     <div className="mx-auto max-w-xl">
       <PageHeader title="계좌 연결 설정" question="토스증권 연결 상태를 보고, 다시 수집하거나 연결을 해제해요." back={{ href: "/", label: "로그" }} />
       <RequireLogin next="/settings/connection">
+        {/* ?rekeyed=1(키 다시 넣기 성공)은 요청마다 달라서 Suspense 안에서 읽는다. */}
+        <Suspense fallback={null}>
+          <RekeyedNotice />
+        </Suspense>
         <SettingsBody />
       </RequireLogin>
+    </div>
+  );
+}
+
+/** 키 다시 넣기에서 돌아왔을 때의 알림. 나타나면 초점을 옮겨 바로 읽히게 한다. */
+function RekeyedNotice() {
+  const rekeyed = useSearchParams().get("rekeyed") === "1";
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (rekeyed) ref.current?.focus();
+  }, [rekeyed]);
+  if (!rekeyed) return null;
+  return (
+    <div ref={ref} tabIndex={-1} role="status" className={`${card} mb-6 space-y-1 text-sm outline-none focus-visible:outline-2 focus-visible:outline-accent`}>
+      <p className="font-semibold">새 키로 바꿨어요</p>
+      <p className="text-muted break-keep">다음 수집부터 새 키를 써요. 빠진 날이 있으면 아래 &lsquo;다시 수집&rsquo;으로 받아 올 수 있어요.</p>
     </div>
   );
 }
@@ -65,7 +86,20 @@ function SettingsBody() {
         {c.status === "ACTIVE" && <p className="text-xs text-muted">매일 아침 7시에 전 거래일 기록을 받아 와요.</p>}
       </section>
 
-      {c.lastError && <LastError message={c.lastError} />}
+      <section aria-labelledby="key-title" className="space-y-2 text-sm">
+        <h2 id="key-title" className="font-semibold">
+          토스증권 키
+        </h2>
+        <p className="text-muted break-keep">
+          토스증권 키는 발급 1년 뒤 만료돼요. 만료일은 WTS Open API 화면에서 확인하고, 만료 전에 재발급한 뒤 &lsquo;키 다시 넣기&rsquo;를 해 주세요.
+          재발급하면 예전 키는 바로 못 쓰게 돼요.
+        </p>
+        <Link href="/connect?mode=rekey" className={`${textLink} inline-block`}>
+          키 다시 넣기
+        </Link>
+      </section>
+
+      {(c.lastError || c.status === "ERROR") && <LastError message={c.lastError} error={c.status === "ERROR"} />}
 
       {c.recentGaps.length > 0 && (
         <section aria-labelledby="gaps-title" className={`${card} space-y-3`}>
@@ -111,22 +145,28 @@ function NoConnection() {
 }
 
 /** 마지막 오류 + 할 일 안내. lastError는 서버가 정한 문장이라, 흔한 사유만 골라 할 일을 덧붙인다. */
-function LastError({ message }: { message: string }) {
-  const ip = /IP|ip-not-allowed|허용/.test(message);
-  const tokenConflict = /다른 곳|token-revoked/.test(message);
+function LastError({ message, error }: { message: string | null; error: boolean }) {
+  const text = message ?? "";
+  const ip = /IP|ip-not-allowed|허용/.test(text);
+  const keyProblem = /다른 곳|token-revoked|키|만료|invalid|인증/.test(text);
   return (
-    <section aria-labelledby="last-error-title" className="space-y-2 rounded-2xl border border-border p-5 text-sm">
+    <section aria-labelledby="last-error-title" className="space-y-3 rounded-2xl border border-border p-5 text-sm">
       <h2 id="last-error-title" className="font-semibold">
         최근 문제
       </h2>
-      <p className="break-keep">{message}</p>
+      {message && <p className="break-keep">{message}</p>}
       <p className="text-muted break-keep">
         {ip
-          ? "토스증권 WTS 설정 > Open API > 허용 IP 관리에 업로그 서버 IP가 그대로 있는지 확인해 주세요. IP는 연결 화면의 2단계에서 다시 볼 수 있어요."
-          : tokenConflict
-            ? "같은 키를 다른 도구에서도 쓰고 있으면 서로의 접속이 끊겨요. 업로그 전용 키를 새로 발급해 연결을 해제한 뒤 다시 연결해 주세요."
-            : "잠시 뒤 다시 수집해 보세요. 계속되면 WTS에서 키가 그대로 있는지 확인하고, 키를 새로 발급했다면 연결을 해제한 뒤 다시 연결해 주세요."}
+          ? "토스증권 설정 > Open API > 허용 IP 관리에 업로그 서버 IP가 그대로 있는지 확인해 주세요. 키를 다시 넣는 화면에서 IP를 다시 볼 수 있어요."
+          : keyProblem
+            ? "같은 키를 다른 도구에서도 쓰거나 키를 재발급·만료했다면 업로그의 접속이 끊겨요. 업로그 전용 키를 새로 발급해 다시 넣어 주세요. 계좌와 기록은 그대로예요."
+            : "잠시 뒤 다시 수집해 보세요. 계속되면 키를 재발급했거나 만료되지 않았는지 확인하고, 새 키를 다시 넣어 주세요."}
       </p>
+      {(error || keyProblem || ip) && (
+        <Link href="/connect?mode=rekey" className={`${primaryButton} w-full sm:w-auto`}>
+          연결 다시 살리기
+        </Link>
+      )}
     </section>
   );
 }

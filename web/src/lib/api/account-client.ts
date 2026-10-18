@@ -4,6 +4,8 @@ import type {
   AccountErrorBody,
   AuthProviders,
   ConnectResult,
+  HandoffRedeemResult,
+  HandoffToken,
   Me,
   TossConnection,
   TossCredentials,
@@ -16,8 +18,12 @@ import * as mockAccount from "@/lib/api/mock/account";
 
 const NETWORK_MESSAGE = "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
-/** POST·DELETE. 본문이 없는 응답(202·204)은 null을 돌려준다. */
-async function send<T>(method: "POST" | "DELETE", path: string, body?: unknown): Promise<T | null> {
+function credentialField(value: unknown): "clientId" | "clientSecret" | null {
+  return value === "clientId" || value === "clientSecret" ? value : null;
+}
+
+/** POST·PUT·DELETE. 본문이 없는 응답(202·204)은 null을 돌려준다. */
+async function send<T>(method: "POST" | "PUT" | "DELETE", path: string, body?: unknown): Promise<T | null> {
   let res: Response;
   try {
     res = await fetch(path, {
@@ -36,6 +42,7 @@ async function send<T>(method: "POST" | "DELETE", path: string, body?: unknown):
       err?.code ?? "UNKNOWN",
       err?.message ?? "알 수 없는 오류가 발생했어요.",
       Array.isArray(err?.egressIps) ? err.egressIps : [],
+      credentialField(err?.field),
     );
   }
   const text = await res.text();
@@ -90,6 +97,30 @@ export async function connectToss(credentials: TossCredentials): Promise<Connect
 export async function chooseTossAccount(credentials: TossCredentials, accountSeq: string): Promise<void> {
   if (USE_MOCK) return mock(() => mockAccount.chooseAccount(credentials, accountSeq), 700);
   await send("POST", "/api/connections/toss/account", { ...credentials, accountSeq });
+}
+
+/**
+ * 연결한 계좌의 키만 새 키로 바꾼다(토큰 끊김·키 재발급). 새 키로 같은 계좌가 보여야 한다(아니면 400 INVALID_PARAMETER).
+ * 오류는 연결과 같다(TOSS_INVALID_CREDENTIALS + field, TOSS_IP_NOT_ALLOWED + egressIps …).
+ */
+export async function replaceTossCredentials(credentials: TossCredentials): Promise<void> {
+  if (USE_MOCK) return mock(() => mockAccount.replaceCredentials(credentials), 900);
+  await send("PUT", "/api/connections/toss/credentials", credentials);
+}
+
+/** 다른 기기(PC)에서 로그인 상태로 이어 하기 위한 1회용 코드를 만든다. 로그인 필요. */
+export async function createHandoff(): Promise<HandoffToken> {
+  if (USE_MOCK) return mock(() => mockAccount.createHandoff());
+  const res = await send<HandoffToken>("POST", "/api/auth/handoff");
+  if (!res) throw new AccountApiError(0, "UNKNOWN", "이어 하기 링크를 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
+  return res;
+}
+
+/** 1회용 코드로 이 기기에 로그인한다(세션 쿠키). 쓴 코드·만료된 코드는 400 HANDOFF_INVALID. */
+export async function redeemHandoff(token: string): Promise<HandoffRedeemResult> {
+  if (USE_MOCK) return mock(() => mockAccount.redeemHandoff(token), 400);
+  const res = await send<HandoffRedeemResult>("POST", "/api/auth/handoff/redeem", { token });
+  return res ?? { nickname: "" };
 }
 
 export function getTossConnection(signal?: AbortSignal): Promise<TossConnection> {

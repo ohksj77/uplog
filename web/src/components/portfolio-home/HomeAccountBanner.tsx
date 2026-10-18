@@ -15,11 +15,13 @@ const bannerLink = "shrink-0 rounded font-semibold text-accent underline-offset-
  * - 연결했는데 계좌가 샘플(개발용 가짜 토스 서버) → 가짜 데이터라고 알림
  * - 로그인했지만 연결 전인데 샘플을 보는 경우(mock) → 연결 권유
  * - 역산 중 → 진행률. 끝나면 onBackfillDone으로 홈 데이터를 다시 부른다.
+ * - 연결에 문제(ERROR) → 마지막 오류와 "연결 다시 살리기"(키 다시 넣기)
  */
 export function HomeAccountBanner({ sample, onBackfillDone }: { sample: boolean; onBackfillDone: () => void }) {
   const { user, connectionStatus } = useMe();
   if (user === undefined) return null;
   if (user && connectionStatus === "BACKFILLING") return <BackfillBanner onDone={onBackfillDone} />;
+  if (user && connectionStatus === "ERROR") return <RecoveryBanner />;
   if (!sample) return null;
   if (user && connectionStatus === "ACTIVE") {
     // 연결한 계좌가 샘플이면 개발용 가짜 토스 서버에서 온 데이터다
@@ -44,6 +46,28 @@ export function HomeAccountBanner({ sample, onBackfillDone }: { sample: boolean;
           로그인하고 내 계좌로 보기
         </Link>
       )}
+    </aside>
+  );
+}
+
+/** 연결이 멈췄을 때. 대개 키 문제(다른 곳에서 같은 키 사용, 재발급, 만료)라 키 다시 넣기로 바로 보낸다. */
+function RecoveryBanner() {
+  const { state } = useTossConnection(true);
+  const lastError = state.status === "success" ? state.data.lastError : null;
+  return (
+    <aside aria-label="계좌 연결 문제" className="space-y-2 rounded-2xl border border-border px-4 py-3 text-sm">
+      <p className="font-semibold break-keep">토스증권 연결이 멈췄어요</p>
+      <p className="text-muted break-keep">
+        {lastError ?? "새 기록을 받아 오지 못하고 있어요."} 키를 다른 곳에서 함께 쓰거나 재발급했다면 새 키를 넣어 연결을 살릴 수 있어요. 계좌와 기록은 그대로예요.
+      </p>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Link href="/connect?mode=rekey" className={bannerLink}>
+          연결 다시 살리기
+        </Link>
+        <Link href="/settings/connection" className="shrink-0 rounded font-medium text-muted underline-offset-4 hover:text-foreground hover:underline outline-none focus-visible:outline-2 focus-visible:outline-accent">
+          연결 설정
+        </Link>
+      </div>
     </aside>
   );
 }
