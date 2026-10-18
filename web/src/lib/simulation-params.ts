@@ -1,4 +1,4 @@
-import type { AmountType, Frequency, Period, SimulationParams, Weekday } from "@/lib/api/types";
+import type { AmountType, Currency, Frequency, Period, SimulationParams, Weekday } from "@/lib/api/types";
 
 // 결과 화면 URL과 API 요청이 같은 쿼리 문자열을 쓴다. 공유 링크는 결과가 아니라 이 파라미터를 담는다.
 
@@ -31,7 +31,13 @@ export function toSearchParams(p: SimulationParams): URLSearchParams {
   if (p.frequency === "MONTHLY" && p.dayOfMonth) q.set("dayOfMonth", String(p.dayOfMonth));
   q.set("amountType", p.amountType);
   q.set("amount", String(p.amount));
+  if (p.currency === "USD") q.set("currency", "USD");
   return q;
+}
+
+/** URL의 기준 통화. currency=USD(대소문자 무시)만 달러이고 나머지는 원화 기본값이다. */
+export function parseCurrency(q: URLSearchParams): Currency {
+  return q.get("currency")?.trim().toUpperCase() === "USD" ? "USD" : "KRW";
 }
 
 /** 잘못되거나 빠진 값이 있으면 이유를 담아 돌려준다. */
@@ -58,6 +64,7 @@ export function parseSearchParams(
   }
 
   const params: SimulationParams = { etfs, period, frequency, amountType, amount };
+  if (parseCurrency(q) === "USD") params.currency = "USD";
   if (frequency === "WEEKLY") {
     const dayOfWeek = q.get("dayOfWeek") as Weekday;
     if (!WEEKDAYS.includes(dayOfWeek)) return { ok: false, error: "매수 요일을 골라 주세요." };

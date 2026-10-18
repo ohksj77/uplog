@@ -1,15 +1,16 @@
 import { STRATEGIES, STRATEGY_LABEL } from "@/components/result/text";
 import { Signed } from "@/components/result/Signed";
 import type { SimulationResponse } from "@/lib/api/types";
-import { formatPercent, formatWonShort } from "@/lib/format";
+import { formatMoneyShort, formatPercent } from "@/lib/format";
 
 type ComparisonTableProps = {
   results: SimulationResponse["results"];
+  currency: SimulationResponse["currency"];
   selected: number;
 };
 
 /** 종목 여러 개일 때 한눈에 보는 비교표. 칸마다 최종 평가금액과 총 수익률. */
-export function ComparisonTable({ results, selected }: ComparisonTableProps) {
+export function ComparisonTable({ results, currency, selected }: ComparisonTableProps) {
   return (
     <section aria-labelledby="compare-heading" className="rounded-2xl bg-surface p-5">
       <h2 id="compare-heading" className="mb-3 text-base font-semibold">
@@ -36,11 +37,15 @@ export function ComparisonTable({ results, selected }: ComparisonTableProps) {
                 <span className={`block break-keep ${i === selected ? "text-foreground" : "text-muted"}`}>
                   {r.etf.name}
                 </span>
-                {r.etf.currency === "USD" && <span className="mt-1 block text-xs font-normal text-muted">원화 환산</span>}
+                {r.etf.currency !== currency && (
+                  <span className="mt-1 block text-xs font-normal text-muted">
+                    {currency === "USD" ? "달러 환산" : "원화 환산"}
+                  </span>
+                )}
               </th>
               {STRATEGIES.map((s) => (
                 <td key={s} className="py-3 text-right align-top tabular-nums">
-                  <span className="block font-medium">{formatWonShort(r[s].summary.finalValue)}원</span>
+                  <span className="block font-medium">{formatMoneyShort(r[s].summary.finalValue, currency, { unit: true })}</span>
                   <Signed value={r[s].summary.totalReturn} className="block text-xs">
                     {formatPercent(r[s].summary.totalReturn)}
                   </Signed>

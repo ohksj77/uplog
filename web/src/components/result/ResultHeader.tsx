@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CopyLinkButton } from "@/components/result/CopyLinkButton";
+import { CurrencyToggle } from "@/components/result/CurrencyToggle";
 import { PERIOD_LABEL, describePlan } from "@/components/result/text";
 import type { SimulationParams } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
@@ -28,6 +29,7 @@ export function ResultHeader({ params, from, to }: ResultHeaderProps) {
         </Link>
         <CopyLinkButton />
       </div>
+      <CurrencyToggle value={params.currency ?? "KRW"} />
     </header>
   );
 }

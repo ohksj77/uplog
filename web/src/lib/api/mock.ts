@@ -121,7 +121,25 @@ function purchaseStreaks(days: SimulationDay[], unit: StreakUnit): StreakStats {
   return stats;
 }
 
-function replay(days: Date[], closes: number[], buys: Map<number, number>, unit: StreakUnit | null): SimulationResult {
+/** 원/달러 mock 환율: 1,500원 근처에서 시작해 천천히 내려가는 결정적 흐름(원화 강세). */
+function mockFx(days: Date[]): number[] {
+  return days.map((_, i) => 1_500 - (150 * i) / Math.max(1, days.length - 1) + 12 * Math.sin(i / 9));
+}
+
+const roundWon = (n: number) => Math.round(n);
+const roundCents = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * closes·buys는 기준 통화. 달러 기준은 원화 종가와 매수 금액을 그날 환율로 나눠 넘기면 된다(수량은 같고 금액만 달러).
+ * round는 응답 금액 반올림(원 단위 / 센트 단위).
+ */
+function replay(
+  days: Date[],
+  closes: number[],
+  buys: Map<number, number>,
+  unit: StreakUnit | null,
+  round: (n: number) => number = roundWon,
+): SimulationResult {
   const first = Math.min(...buys.keys());
   let units = 0;
   let invested = 0;
@@ -153,9 +171,9 @@ function replay(days: Date[], closes: number[], buys: Map<number, number>, unit:
     const profit = value - invested;
     if (profit > peakProfit.amount) peakProfit = { amount: profit, date };
     if (profit - peakProfit.amount < maxDrawdownAmount.amount) {
-      maxDrawdownAmount = { amount: Math.round(profit - peakProfit.amount), peak: peakProfit.date, trough: date };
+      maxDrawdownAmount = { amount: round(profit - peakProfit.amount), peak: peakProfit.date, trough: date };
     }
-    const pnl = Math.round(value - cf - prevValue);
+    const pnl = round(value - cf - prevValue);
     if (!worstDayAmount || pnl < worstDayAmount.pnl) worstDayAmount = { date, pnl };
     const under = value < invested;
     if (under && !underwaterStart) underwaterStart = date;
@@ -164,7 +182,7 @@ function replay(days: Date[], closes: number[], buys: Map<number, number>, unit:
       if (!underwater || days > underwater.days) underwater = { start: underwaterStart, end: date, recovered: true, days };
       underwaterStart = null;
     }
-    out.push({ date, close: closes[i], value: Math.round(value), invested, dailyReturn: r, purchased: cf > 0 });
+    out.push({ date, close: round(closes[i]), value: round(value), invested: round(invested), dailyReturn: r, purchased: cf > 0 });
     prevValue = value;
   }
   if (underwaterStart) {
@@ -179,7 +197,7 @@ function replay(days: Date[], closes: number[], buys: Map<number, number>, unit:
     summary: {
       finalValue: last.value,
       invested: last.invested,
-      profit: last.value - last.invested,
+      profit: round(last.value - last.invested),
       totalReturn: last.value / last.invested - 1,
       twr: index - 1,
       annualizedTwr: span > 0 ? index ** (365 / span) - 1 : 0,
@@ -202,21 +220,28 @@ export function mockSimulation(p: SimulationParams): SimulationResponse {
   const buyIdx = purchaseIndexes(days, p);
   const perPurchase = p.amountType === "TOTAL" ? Math.floor(p.amount / buyIdx.length) : p.amount;
   const total = perPurchase * buyIdx.length;
+  const currency = p.currency ?? "KRW";
+  const fx = mockFx(days);
+  // 달러 기준: 같은 원화 매수를 그날 환율로 나눈다
+  const inBasis = (krw: number, i: number) => (currency === "USD" ? krw / fx[i] : krw);
+  const round = currency === "USD" ? roundCents : roundWon;
 
   return {
     from: iso(days[0]),
     to: iso(days[days.length - 1]),
+    currency,
     results: p.etfs.map((code) => {
       const etf = INSTRUMENTS.find((e) => e.code === code) ?? { ...INSTRUMENTS[0], code, name: code };
-      const closes = prices(code, days);
+      const closes = prices(code, days).map(inBasis);
       return {
         etf: { code: etf.code, name: etf.name, market: etf.market, type: etf.type, currency: etf.currency },
-        lumpSum: replay(days, closes, new Map([[0, total]]), null),
+        lumpSum: replay(days, closes, new Map([[0, inBasis(total, 0)]]), null, round),
         recurring: replay(
           days,
           closes,
-          new Map(buyIdx.map((i) => [i, perPurchase])),
+          new Map(buyIdx.map((i) => [i, inBasis(perPurchase, i)])),
           ({ DAILY: "DAY", WEEKLY: "WEEK", MONTHLY: "MONTH" } as const)[p.frequency],
+          round,
         ),
       };
     }),
