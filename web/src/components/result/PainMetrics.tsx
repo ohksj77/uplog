@@ -17,7 +17,7 @@ const BASIS_OPTIONS: { value: Basis; label: string }[] = [
 ];
 
 const BASIS_HINT: Record<Basis, string> = {
-  rate: "입출금을 뺀 수익률(TWR)이에요. 같은 ETF면 거치식과 적립식이 같아요.",
+  rate: "입출금을 뺀 수익률(TWR)이에요. 같은 종목이면 거치식과 적립식이 같아요.",
   amount: "평가손익이 고점에서 얼마나 줄었는지, 하루에 얼마를 잃었는지예요. 방식마다 실제로 잃은 돈이 달라요.",
 };
 

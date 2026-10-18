@@ -1,6 +1,6 @@
 import type { ApiErrorBody, EtfListItem, SimulationParams, SimulationResponse } from "@/lib/api/types";
 import { toSearchParams } from "@/lib/simulation-params";
-import { mockEtfs, mockSimulation } from "@/lib/api/mock";
+import { mockInstruments, mockSimulation } from "@/lib/api/mock";
 
 // 브라우저에서 호출한다. /api/* 는 next.config.ts의 rewrite로 백엔드(API_ORIGIN)에 전달된다.
 // NEXT_PUBLIC_USE_MOCK=1 이면 백엔드 없이 mock 데이터를 쓴다.
@@ -31,11 +31,15 @@ export async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function searchEtfs(query: string, signal?: AbortSignal): Promise<EtfListItem[]> {
-  if (USE_MOCK) return Promise.resolve(mockEtfs(query));
+/** 실제 ETF·주식 검색(코드 일치 → ETF → 주식 순). 비로그인·미연결이면 403 SIMULATION_REQUIRES_CONNECTION. */
+export function searchInstruments(query: string, signal?: AbortSignal): Promise<EtfListItem[]> {
+  if (USE_MOCK) return Promise.resolve(mockInstruments(query));
   const q = new URLSearchParams({ query, limit: "20" });
-  return get(`/api/etfs?${q}`, signal);
+  return get(`/api/instruments?${q}`, signal);
 }
+
+/** 시뮬레이션은 계좌를 연결한 사용자만 쓸 수 있다(시세를 그 사용자의 토스 키로 받는다). */
+export const REQUIRES_CONNECTION = "SIMULATION_REQUIRES_CONNECTION";
 
 export function runSimulation(params: SimulationParams, signal?: AbortSignal): Promise<SimulationResponse> {
   if (USE_MOCK) return Promise.resolve(mockSimulation(params));

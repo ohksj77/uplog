@@ -1,4 +1,3 @@
-import { SampleBadge } from "@/components/result/SampleBadge";
 import { STRATEGIES, STRATEGY_LABEL } from "@/components/result/text";
 import { Signed } from "@/components/result/Signed";
 import type { SimulationResponse } from "@/lib/api/types";
@@ -9,19 +8,19 @@ type ComparisonTableProps = {
   selected: number;
 };
 
-/** ETF 여러 개일 때 한눈에 보는 비교표. 칸마다 최종 평가금액과 총 수익률. */
+/** 종목 여러 개일 때 한눈에 보는 비교표. 칸마다 최종 평가금액과 총 수익률. */
 export function ComparisonTable({ results, selected }: ComparisonTableProps) {
   return (
     <section aria-labelledby="compare-heading" className="rounded-2xl bg-surface p-5">
       <h2 id="compare-heading" className="mb-3 text-base font-semibold">
-        ETF 비교
+        종목 비교
       </h2>
       <table className="w-full table-fixed text-sm">
-        <caption className="sr-only">ETF별 최종 평가금액과 총 수익률</caption>
+        <caption className="sr-only">종목별 최종 평가금액과 총 수익률</caption>
         <thead>
           <tr className="text-left text-xs text-muted">
             <th scope="col" className="w-[40%] pb-2 font-medium">
-              ETF
+              종목
             </th>
             {STRATEGIES.map((s) => (
               <th key={s} scope="col" className="pb-2 text-right font-medium">
@@ -37,11 +36,7 @@ export function ComparisonTable({ results, selected }: ComparisonTableProps) {
                 <span className={`block break-keep ${i === selected ? "text-foreground" : "text-muted"}`}>
                   {r.etf.name}
                 </span>
-                {r.etf.sample && (
-                  <span className="mt-1 block">
-                    <SampleBadge />
-                  </span>
-                )}
+                {r.etf.currency === "USD" && <span className="mt-1 block text-xs font-normal text-muted">원화 환산</span>}
               </th>
               {STRATEGIES.map((s) => (
                 <td key={s} className="py-3 text-right align-top tabular-nums">

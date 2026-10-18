@@ -10,20 +10,27 @@ import type {
   StreakUnit,
 } from "@/lib/api/types";
 
-// 백엔드 없이 화면을 개발하기 위한 합성 데이터. 실제 시세가 아니므로 모두 sample: true.
+// 백엔드 없이 화면을 개발하기 위한 데이터(NEXT_PUBLIC_USE_MOCK=1). 종목 목록은 실제 종목 코드·이름을 흉내 내지만
+// 시세는 종목코드를 시드로 만든 랜덤워크다. 화면에는 실제 응답과 똑같이 보인다(샘플 표시 없음).
 
 const MOCK_LAST_DATE = "2026-10-16";
 
-const ETFS: EtfListItem[] = [
-  { code: "SAMPLE01", name: "샘플 코스피200 ETF", currency: "KRW", sample: true, firstDate: "2020-01-02", lastDate: MOCK_LAST_DATE },
-  { code: "SAMPLE02", name: "샘플 미국S&P500 ETF", currency: "KRW", sample: true, firstDate: "2020-01-02", lastDate: MOCK_LAST_DATE },
-  { code: "SAMPLE03", name: "샘플 미국나스닥100 ETF", currency: "KRW", sample: true, firstDate: "2020-01-02", lastDate: MOCK_LAST_DATE },
-  { code: "SAMPLE04", name: "샘플 2차전지 ETF", currency: "KRW", sample: true, firstDate: "2020-01-02", lastDate: MOCK_LAST_DATE },
+const INSTRUMENTS: EtfListItem[] = [
+  { code: "069500", name: "KODEX 200", market: "KR", type: "ETF", currency: "KRW", firstDate: "2020-01-02", lastDate: MOCK_LAST_DATE },
+  { code: "360750", name: "TIGER 미국S&P500", market: "KR", type: "ETF", currency: "KRW", firstDate: "2020-08-07", lastDate: MOCK_LAST_DATE },
+  { code: "SPY", name: "SPDR S&P 500 ETF", market: "US", type: "ETF", currency: "USD", firstDate: "2020-01-02", lastDate: MOCK_LAST_DATE },
+  { code: "QQQ", name: "인베스코 QQQ", market: "US", type: "ETF", currency: "USD", firstDate: null, lastDate: null },
+  { code: "005930", name: "삼성전자", market: "KR", type: "STOCK", currency: "KRW", firstDate: "2020-01-02", lastDate: MOCK_LAST_DATE },
+  { code: "AAPL", name: "애플", market: "US", type: "STOCK", currency: "USD", firstDate: null, lastDate: null },
 ];
 
-export function mockEtfs(query: string): EtfListItem[] {
+/** 백엔드와 같은 순서: 코드 일치 → ETF → 주식, 그 안에서 이름순. */
+export function mockInstruments(query: string): EtfListItem[] {
   const q = query.trim().toLowerCase();
-  return ETFS.filter((e) => !q || e.name.toLowerCase().includes(q) || e.code.toLowerCase().includes(q));
+  const rank = (e: EtfListItem) => (e.code.toLowerCase() === q ? 0 : 2) + (e.type === "ETF" ? 0 : 1);
+  return INSTRUMENTS.filter((e) => !q || e.name.toLowerCase().includes(q) || e.code.toLowerCase().includes(q)).sort(
+    (a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, "ko"),
+  );
 }
 
 const iso = (d: Date): IsoDate => d.toISOString().slice(0, 10);
@@ -200,10 +207,10 @@ export function mockSimulation(p: SimulationParams): SimulationResponse {
     from: iso(days[0]),
     to: iso(days[days.length - 1]),
     results: p.etfs.map((code) => {
-      const etf = ETFS.find((e) => e.code === code) ?? { ...ETFS[0], code, name: `샘플 ETF ${code}` };
+      const etf = INSTRUMENTS.find((e) => e.code === code) ?? { ...INSTRUMENTS[0], code, name: code };
       const closes = prices(code, days);
       return {
-        etf: { code: etf.code, name: etf.name, currency: "KRW", sample: true },
+        etf: { code: etf.code, name: etf.name, market: etf.market, type: etf.type, currency: etf.currency },
         lumpSum: replay(days, closes, new Map([[0, total]]), null),
         recurring: replay(
           days,

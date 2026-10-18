@@ -2,16 +2,23 @@
 
 export type IsoDate = string; // YYYY-MM-DD
 
+export type Market = "KR" | "US";
+export type InstrumentType = "ETF" | "STOCK";
+
+/** 시뮬레이션 종목(실제 ETF·주식). 이름은 v1의 Etf를 그대로 쓴다. */
 export type Etf = {
   code: string;
   name: string;
-  currency: "KRW";
-  sample: boolean;
+  market: Market;
+  type: InstrumentType;
+  /** 거래 통화. 응답 금액은 통화와 상관없이 원화(USD 종목은 그날 환율로 환산) */
+  currency: "KRW" | "USD";
 };
 
 export type EtfListItem = Etf & {
-  firstDate: IsoDate;
-  lastDate: IsoDate;
+  /** 저장된 시세 구간. 아직 시세를 받지 않은 종목은 null(시뮬레이션할 때 받는다) */
+  firstDate: IsoDate | null;
+  lastDate: IsoDate | null;
 };
 
 export type Period = "6M" | "1Y" | "3Y";
@@ -20,7 +27,7 @@ export type Weekday = "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY"
 export type AmountType = "TOTAL" | "PER_PURCHASE";
 
 export type SimulationParams = {
-  etfs: string[]; // 1–3개
+  etfs: string[]; // 종목코드 1–3개
   period: Period;
   frequency: Frequency;
   dayOfWeek?: Weekday; // WEEKLY
@@ -31,6 +38,7 @@ export type SimulationParams = {
 
 export type SimulationDay = {
   date: IsoDate;
+  /** 원화 종가(USD 종목은 그날 환율로 환산) */
   close: number;
   value: number;
   invested: number;
@@ -80,6 +88,12 @@ export type SimulationResponse = {
 };
 
 export type ApiErrorBody = {
-  code: "INVALID_PARAMETER" | "ETF_NOT_FOUND" | "NO_PRICE_DATA" | string;
+  code:
+    | "INVALID_PARAMETER"
+    | "SIMULATION_REQUIRES_CONNECTION"
+    | "ETF_NOT_FOUND"
+    | "NO_PRICE_DATA"
+    | "MARKET_DATA_UNAVAILABLE"
+    | string;
   message: string;
 };

@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { LogMode } from "@/components/log-grid/types";
 import { LogSection } from "@/components/result/LogSection";
 import { PainMetrics } from "@/components/result/PainMetrics";
-import { SampleBadge } from "@/components/result/SampleBadge";
+import { InstrumentBadges } from "@/components/etf-picker";
 import { StreakMetrics } from "@/components/result/StreakMetrics";
 import { SummaryCards } from "@/components/result/SummaryCards";
 import { ValueChart } from "@/components/result/ValueChart";
@@ -16,7 +16,7 @@ type EtfResultProps = {
   onModeChange: (mode: LogMode) => void;
 };
 
-/** ETF 하나의 결과. 고른 날은 로그 두 줄과 차트가 함께 쓴다(ETF가 바뀌면 key로 초기화). */
+/** 종목 하나의 결과. 고른 날은 로그 두 줄과 차트가 함께 쓴다(종목이 바뀌면 key로 초기화). */
 export function EtfResult({ result, mode, onModeChange }: EtfResultProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const { etf, lumpSum, recurring } = result;
@@ -24,10 +24,18 @@ export function EtfResult({ result, mode, onModeChange }: EtfResultProps) {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-base font-semibold break-keep">{etf.name}</p>
-        <span className="text-xs text-muted">{etf.code}</span>
-        {etf.sample && <SampleBadge />}
+      <div className="space-y-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-base font-semibold break-keep">{etf.name}</p>
+          <span className="text-xs text-muted">{etf.code}</span>
+          <InstrumentBadges etf={etf} />
+        </div>
+        {etf.currency === "USD" && (
+          <p className="text-xs leading-relaxed text-muted break-keep">
+            달러로 거래하는 미국 종목이라 매수 금액·평가금액·종가를 그날 원/달러 환율로 원화로 환산했어요. 수익률에는 환율
+            변동도 들어 있어요.
+          </p>
+        )}
       </div>
       <LogSection
         etfName={etf.name}

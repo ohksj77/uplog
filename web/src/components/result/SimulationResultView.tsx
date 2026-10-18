@@ -11,11 +11,22 @@ import { ResultError } from "@/components/result/ResultError";
 import { ResultHeader } from "@/components/result/ResultHeader";
 import { ResultSkeleton } from "@/components/result/ResultSkeleton";
 import { useSimulation } from "@/components/result/use-simulation";
+import { ConnectFirst, SimulationGate } from "@/components/simulation-form";
+import { REQUIRES_CONNECTION } from "@/lib/api/client";
 import type { SimulationParams, SimulationResponse } from "@/lib/api/types";
 import { parseSearchParams, toSearchParams } from "@/lib/simulation-params";
 
-// 결과 화면 본체. URL 쿼리를 읽어 브라우저에서 시뮬레이션을 부른다.
+// 결과 화면 본체. 계좌를 연결한 사용자만 URL 쿼리를 읽어 브라우저에서 시뮬레이션을 부른다.
+// (공유 링크를 비로그인·미연결 사용자가 열면 연결 안내를 보여 준다)
 export function SimulationResultView() {
+  return (
+    <SimulationGate fallback={<ResultSkeleton />} asPageTitle>
+      <ConnectedResultView />
+    </SimulationGate>
+  );
+}
+
+function ConnectedResultView() {
   const searchParams = useSearchParams();
   const query = searchParams.toString();
   const parsed = useMemo(() => parseSearchParams(new URLSearchParams(query)), [query]);
@@ -25,6 +36,9 @@ export function SimulationResultView() {
     return <ResultError title="조건을 다시 확인해 주세요" message={parsed.error} />;
   }
   if (state.status === "loading") return <ResultSkeleton />;
+  if (state.status === "error" && state.error.code === REQUIRES_CONNECTION) {
+    return <ConnectFirst loggedIn asPageTitle />;
+  }
   if (state.status === "error") {
     return (
       <ResultError
@@ -49,7 +63,7 @@ function ResultBody({ params, data }: { params: SimulationParams; data: Simulati
   const multi = data.results.length > 1;
 
   if (!current) {
-    return <ResultError title="결과가 비어 있어요" message="고른 ETF의 결과를 받지 못했어요." />;
+    return <ResultError title="결과가 비어 있어요" message="고른 종목의 결과를 받지 못했어요." />;
   }
 
   return (
