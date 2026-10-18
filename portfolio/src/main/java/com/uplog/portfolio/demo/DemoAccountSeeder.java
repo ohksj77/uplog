@@ -67,7 +67,7 @@ public class DemoAccountSeeder implements ApplicationRunner {
             closes.put(code, marketData.loadCloses(listed.instrument().id(), range.firstDate(), range.lastDate()).orElseThrow());
             end = end == null || range.lastDate().isBefore(end) ? range.lastDate() : end;
         }
-        PriceSeries usdKrw = marketData.loadFxRates("USDKRW", end.minusYears(3), end)
+        PriceSeries usdKrw = marketData.loadFxRates(com.uplog.marketdata.seed.SampleMarketSeeder.SAMPLE_FX_PAIR, end.minusYears(3), end)
                 .orElseThrow(() -> new IllegalStateException("샘플 환율이 없습니다"));
         DemoAccountScript.Plan plan = DemoAccountScript.generate(closes, usdKrw, end);
 

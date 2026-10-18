@@ -57,10 +57,11 @@ public class PortfolioRepository {
             "id, name, broker, sample, connected_at, user_id, broker_account_seq, masked_account_no, status";
 
     private static Account account(ResultSet rs) throws SQLException {
-        long userId = rs.getLong("user_id");
+        // wasNull()은 마지막으로 읽은 열 기준이라, NULL을 그대로 받으려면 getObject로 읽는다(데모 계좌는 user_id가 NULL).
+        Long userId = rs.getObject("user_id", Long.class);
         return new Account(
                 rs.getLong("id"), rs.getString("name"), rs.getString("broker"), rs.getBoolean("sample"),
-                rs.getDate("connected_at").toLocalDate(), rs.wasNull() ? null : userId, rs.getString("broker_account_seq"),
+                rs.getDate("connected_at").toLocalDate(), userId, rs.getString("broker_account_seq"),
                 rs.getString("masked_account_no"), AccountStatus.valueOf(rs.getString("status")));
     }
 
@@ -241,7 +242,7 @@ public class PortfolioRepository {
                         SELECT t.date, i.code, t.side, t.quantity, t.price, t.fx_rate, t.fee, t.tax
                         FROM trade t JOIN instrument i ON i.id = t.instrument_id
                         WHERE t.account_id = :accountId
-                        ORDER BY t.date, t.id
+                        ORDER BY t.date, CASE WHEN t.side = 'BUY' THEN 0 ELSE 1 END, t.id
                         """)
                 .param("accountId", accountId)
                 .query((rs, n) -> new Execution(

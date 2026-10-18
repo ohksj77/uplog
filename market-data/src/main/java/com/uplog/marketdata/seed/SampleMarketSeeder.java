@@ -41,6 +41,11 @@ public class SampleMarketSeeder implements ApplicationRunner {
 
     public static final int ORDER = 100;
     public static final String USD_KRW = "USDKRW";
+    /**
+     * 합성 환율은 실제 환율(USDKRW)과 섞이지 않게 이 pair로 넣는다. 실제 계좌의 역산은 USDKRW에 빈 날만 채우므로,
+     * 합성 값이 USDKRW에 있으면 실제 해외 종목이 가짜 환율로 평가된다. 이 pair는 주인 없는 데모 계좌만 쓴다.
+     */
+    public static final String SAMPLE_FX_PAIR = "USDKRW_SAMPLE";
 
     private static final Logger log = LoggerFactory.getLogger(SampleMarketSeeder.class);
     private static final int YEARS = 3;
@@ -98,11 +103,11 @@ public class SampleMarketSeeder implements ApplicationRunner {
                     new NewInstrument(spec.code(), spec.name(), spec.market(), spec.currency(), spec.type(), true));
             repository.insertDailyPrices(id, series.get(spec.code()));
         }
-        if (repository.fxRange(USD_KRW).isEmpty()) {
-            repository.insertFxRates(USD_KRW, series.get(USD_KRW));
+        if (repository.fxRange(SAMPLE_FX_PAIR).isEmpty()) {
+            repository.insertFxRates(SAMPLE_FX_PAIR, series.get(USD_KRW));
         }
         version.bump();
-        log.info("샘플 종목·지수 {}종과 {} 환율 시드 완료(~{})", allSpecs().size(), USD_KRW, end);
+        log.info("샘플 종목·지수 {}종과 {} 환율 시드 완료(~{})", allSpecs().size(), SAMPLE_FX_PAIR, end);
     }
 
     static List<Spec> allSpecs() {

@@ -319,6 +319,13 @@ class ConnectionApiTest {
         long demo = repository.demoAccount().orElseThrow().id();
         repository.insertCashFlows(accountId, repository.cashFlows(demo), "copy-f-");
         repository.insertTrades(accountId, repository.trades(demo), "copy-t-");
+        // 연결한 계좌는 실제 USDKRW를 쓴다. 테스트에선 데모용 합성 환율을 실제 pair로 복사해 둔다.
+        jdbc.update("""
+                INSERT INTO fx_rate (pair, date, rate)
+                SELECT 'USDKRW', s.date, s.rate FROM fx_rate s
+                WHERE s.pair = 'USDKRW_SAMPLE'
+                  AND NOT EXISTS (SELECT 1 FROM fx_rate r WHERE r.pair = 'USDKRW' AND r.date = s.date)
+                """);
         portfolio.refresh(accountId);
     }
 }

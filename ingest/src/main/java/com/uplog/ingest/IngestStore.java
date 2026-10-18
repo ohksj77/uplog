@@ -23,6 +23,8 @@ public class IngestStore {
     /** 추정 입출금의 broker_flow_id 접두어. 일일 수집은 날짜를 붙이고, 역산 구간 추정은 BACKFILL_PREFIX를 쓴다. */
     static final String DAILY_PREFIX = "inferred-";
     static final String BACKFILL_PREFIX = "inferred-backfill-";
+    /** 체결 내역에 없는 입고를 채운 추정 매수와 그 현물 입금(PositionGaps) */
+    static final String TRANSFER_IN_PREFIX = "inferred-in-";
 
     /** 수집 대상 계좌. accountSeq는 토스 X-Tossinvest-Account 값. */
     public record Target(long accountId, String accountSeq, LocalDate connectedAt, String status, boolean sample) {}
@@ -194,6 +196,7 @@ public class IngestStore {
                         SELECT i.currency, t.side, t.quantity, t.price, t.fee, t.tax
                         FROM trade t JOIN instrument i ON i.id = t.instrument_id
                         WHERE t.account_id = :accountId AND t.date > :from AND t.date <= :to
+                          AND t.broker_trade_id NOT LIKE 'inferred-in-%'
                         """)
                 .param("accountId", accountId)
                 .param("from", Date.valueOf(fromExclusive))
@@ -230,6 +233,33 @@ public class IngestStore {
                     .update();
             for (var f : flows) {
                 insertFlow(accountId, BACKFILL_PREFIX + f.date(), f.date(), f.signedAmount());
+            }
+        });
+    }
+
+    /** 추정 입고를 통째로 바꾼다. 실제 체결만 보고 다시 찾을 수 있게 기존 추정 입고를 먼저 지운다. */
+    public void clearTransferIns(long accountId) {
+        tx.executeWithoutResult(status -> {
+            jdbc.sql("DELETE FROM trade WHERE account_id = :accountId AND broker_trade_id LIKE :prefix")
+                    .param("accountId", accountId)
+                    .param("prefix", TRANSFER_IN_PREFIX + "%")
+                    .update();
+            jdbc.sql("DELETE FROM cash_flow WHERE account_id = :accountId AND broker_flow_id LIKE :prefix")
+                    .param("accountId", accountId)
+                    .param("prefix", TRANSFER_IN_PREFIX + "%")
+                    .update();
+        });
+    }
+
+    /** 추정 입고: 매도가로 들인 매수 + 같은 금액의 현물 입금(가치가 그날 튀지 않게). */
+    public void insertTransferIns(long accountId, List<PositionGaps.Gap> gaps) {
+        tx.executeWithoutResult(status -> {
+            int seq = 0;
+            for (PositionGaps.Gap g : gaps) {
+                String id = TRANSFER_IN_PREFIX + g.symbol() + "-" + g.date() + "-" + (seq++);
+                insertTrades(accountId, List.of(new NewTrade(id, g.date(), g.symbol(), Trade.Side.BUY, g.quantity(),
+                        g.priceLocal(), g.fxRate(), BigDecimal.ZERO, BigDecimal.ZERO)));
+                insertFlow(accountId, id, g.date(), g.amountKrw());
             }
         });
     }

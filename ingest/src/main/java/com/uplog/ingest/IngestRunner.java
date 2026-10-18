@@ -116,6 +116,7 @@ public class IngestRunner implements JobHandler {
         registerInstruments(orders, names);
         List<IngestStore.NewTrade> trades = toTrades(ctx.credentials(), orders, f -> progress.report(0.2 + 0.2 * f));
         int inserted = store.insertTrades(ctx.accountId(), trades);
+        int transferIns = fillTransferIns(ctx.accountId());
         progress.report(0.4);
 
         List<String> symbols = store.tradedSymbols(ctx.accountId());
@@ -136,10 +137,22 @@ public class IngestRunner implements JobHandler {
                 .ifPresent(at -> store.advanceCursor(ctx.accountId(), at.toInstant()));
         refresh(ctx.accountId());
         jobs.enqueue(ctx.accountId(), IngestJob.Kind.DAILY, asOf, clock.instant());
-        String note = "역산: 체결 %d건(새로 %d건), 종목 %d개, 일봉 %d개, 환율 %d일, 추정 입금 %d건, 기준일 %s"
-                .formatted(trades.size(), inserted, symbols.size(), candles, fxDays, deposits, asOf);
+        String note = "역산: 체결 %d건(새로 %d건), 추정 입고 %d건, 종목 %d개, 일봉 %d개, 환율 %d일, 추정 입금 %d건, 기준일 %s"
+                .formatted(trades.size(), inserted, transferIns, symbols.size(), candles, fxDays, deposits, asOf);
         log.info("계좌 {} {}", ctx.accountId(), note);
         return note;
+    }
+
+    /** 체결 내역에 없는 입고(타사 이관·시간외 종가·주식 선물 등)를 추정 입고로 채운다. 실제 체결만 보고 매번 다시 찾는다. */
+    private int fillTransferIns(long accountId) {
+        store.clearTransferIns(accountId);
+        List<PositionGaps.Gap> gaps = PositionGaps.oversells(portfolio.trades(accountId));
+        store.insertTransferIns(accountId, gaps);
+        if (!gaps.isEmpty()) {
+            log.info("계좌 {} 체결 내역에 없는 입고 {}건을 추정 입고로 채움: {}", accountId, gaps.size(),
+                    gaps.stream().map(g -> g.symbol() + " " + g.quantity().stripTrailingZeros().toPlainString() + "주@" + g.date()).toList());
+        }
+        return gaps.size();
     }
 
     // ---- 일일
@@ -160,6 +173,7 @@ public class IngestRunner implements JobHandler {
         registerInstruments(orders, names);
         holdings.forEach(h -> sync.ensureInstrument(h.symbol(), h.name(), h.market(), h.currency()));
         int inserted = store.insertTrades(ctx.accountId(), toTrades(ctx.credentials(), orders, f -> {}));
+        fillTransferIns(ctx.accountId());
 
         List<String> symbols = store.tradedSymbols(ctx.accountId());
         syncCandles(ctx, symbols, asOf, f -> {});

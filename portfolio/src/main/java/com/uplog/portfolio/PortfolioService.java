@@ -118,6 +118,13 @@ public class PortfolioService {
     public static final int CALC_VERSION = 1;
 
     static final String USD_KRW = "USDKRW";
+
+    /** 주인 없는 데모 계좌만 합성 환율을 쓴다. 연결한 계좌(가짜 토스 포함)는 수집한 USDKRW를 쓴다. */
+    static String fxPair(PortfolioRepository.Account account) {
+        return account.userId() == null && account.sample()
+                ? com.uplog.marketdata.seed.SampleMarketSeeder.SAMPLE_FX_PAIR
+                : USD_KRW;
+    }
     static final Map<String, String> BENCHMARK_NAMES = Map.of("SPX", "S&P500", "KOSPI200", "코스피200");
 
     private static final int CHART_LOOKBACK = 60;
@@ -175,7 +182,7 @@ public class PortfolioService {
             closes.put(code, marketData.loadCloses(instrument.id(), from, to)
                     .orElseThrow(() -> new IllegalStateException("종목 시세가 없습니다: " + code)));
         }
-        PriceSeries usdKrw = marketData.loadFxRates(USD_KRW, from, to).orElse(null);
+        PriceSeries usdKrw = marketData.loadFxRates(fxPair(account), from, to).orElse(null);
         return PortfolioSnapshot.build(account, instruments, closes, usdKrw, trades, flows, dividends,
                 repository.gaps(account.id()));
     }
@@ -344,7 +351,7 @@ public class PortfolioService {
         PriceSeries krw = local;
         if (index.currency() == CurrencyCode.USD) {
             PriceSeries fx = s.usdKrw() != null ? s.usdKrw()
-                    : marketData.loadFxRates(USD_KRW, s.firstDate().minusYears(1), s.lastDate())
+                    : marketData.loadFxRates(fxPair(s.account()), s.firstDate().minusYears(1), s.lastDate())
                             .orElseThrow(() -> new PortfolioException(
                                     PortfolioErrorCode.INSTRUMENT_NOT_FOUND, "USD/KRW 환율이 없습니다."));
             krw = FxConversion.toKrw(local, fx);

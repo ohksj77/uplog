@@ -61,6 +61,9 @@ public record PortfolioSnapshot(
         List<PriceSeries> calendars = new ArrayList<>(closes.values());
         boolean hasUsd = currencies.containsValue(CurrencyCode.USD);
         if (hasUsd) {
+            if (usdKrw == null) {
+                throw new IllegalStateException("해외 종목이 있는데 USD/KRW 환율이 없습니다(계좌 " + account.id() + ")");
+            }
             calendars.add(usdKrw);
         }
         LocalDate last = calendars.stream().map(PriceSeries::lastDate).min(Comparator.naturalOrder())

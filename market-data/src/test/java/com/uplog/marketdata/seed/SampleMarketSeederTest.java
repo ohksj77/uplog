@@ -35,10 +35,12 @@ class SampleMarketSeederTest {
             assertThat(listed.range()).hasValueSatisfying(r -> assertThat(r.lastDate()).isEqualTo(FRI));
         }
         assertThat(repository.findByCode("SMPT").orElseThrow().instrument().market()).isEqualTo("US");
-        assertThat(repository.loadFxRates(SampleMarketSeeder.USD_KRW, FRI.minusYears(1), FRI)).hasValueSatisfying(fx -> {
+        // 합성 환율은 데모 전용 pair에만 넣고, 실제 계좌가 쓰는 USDKRW는 비워 둔다(역산이 실제 환율로 채운다)
+        assertThat(repository.loadFxRates(SampleMarketSeeder.SAMPLE_FX_PAIR, FRI.minusYears(1), FRI)).hasValueSatisfying(fx -> {
             assertThat(fx.lastDate()).isEqualTo(FRI);
             assertThat(fx.closeOn(FRI)).isBetween(new BigDecimal("1100"), new BigDecimal("1600"));
         });
+        assertThat(repository.fxRange(SampleMarketSeeder.USD_KRW)).isEmpty();
         // 원화 ETF만 기능 A 검색에 나온다: S00003은 나오고 SMPS(달러)는 안 나온다
         assertThat(repository.searchEtfs("", 20)).extracting(l -> l.instrument().code()).containsExactly("S00003");
     }
