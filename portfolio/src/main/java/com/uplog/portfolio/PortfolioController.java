@@ -1,11 +1,15 @@
 package com.uplog.portfolio;
 
+import com.uplog.portfolio.api.PortfolioDtos.CostsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.DayResponse;
+import com.uplog.portfolio.api.PortfolioDtos.DividendsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.FxResponse;
+import com.uplog.portfolio.api.PortfolioDtos.HabitsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingDetailResponse;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingDto;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingPeriodsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.LogResponse;
+import com.uplog.portfolio.api.PortfolioDtos.MonthlyResponse;
 import com.uplog.portfolio.api.PortfolioDtos.SalesResponse;
 import com.uplog.portfolio.api.PortfolioDtos.ShadowResponse;
 import com.uplog.portfolio.api.PortfolioDtos.SummaryResponse;
@@ -82,5 +86,25 @@ public class PortfolioController {
     @GetMapping("/insights/underwater")
     public UnderwaterResponse underwater() {
         return service.underwater();
+    }
+
+    @GetMapping("/insights/monthly")
+    public MonthlyResponse monthly() {
+        return service.monthly();
+    }
+
+    @GetMapping("/insights/habits")
+    public HabitsResponse habits() {
+        return service.habits();
+    }
+
+    @GetMapping("/insights/dividends")
+    public DividendsResponse dividends() {
+        return service.dividends();
+    }
+
+    @GetMapping("/insights/costs")
+    public CostsResponse costs(@RequestParam(required = false) String year) {
+        return service.costs(year);
     }
 }

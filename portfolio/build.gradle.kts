@@ -9,6 +9,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework:spring-webmvc")
     implementation("com.github.ben-manes.caffeine:caffeine")
+    // 계약 필드 "return"은 자바 예약어라 @JsonProperty로 이름을 붙인다.
+    implementation("com.fasterxml.jackson.core:jackson-annotations")
 
     testImplementation(platform(libs.spring.boot.dependencies))
     testImplementation("org.springframework:spring-test")

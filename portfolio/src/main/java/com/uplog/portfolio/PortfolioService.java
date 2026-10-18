@@ -12,15 +12,19 @@ import com.uplog.calc.Twr;
 import com.uplog.calc.portfolio.AccountFlow;
 import com.uplog.calc.portfolio.AccountLog;
 import com.uplog.calc.portfolio.Dividend;
+import com.uplog.calc.portfolio.DividendIncome;
 import com.uplog.calc.portfolio.Execution;
 import com.uplog.calc.portfolio.FxConversion;
 import com.uplog.calc.portfolio.FxDecomposition;
 import com.uplog.calc.portfolio.HoldingPeriods;
 import com.uplog.calc.portfolio.InstrumentDay;
+import com.uplog.calc.portfolio.MonthlyReturns;
 import com.uplog.calc.portfolio.PnlWaterfall;
 import com.uplog.calc.portfolio.PortfolioDay;
 import com.uplog.calc.portfolio.RealizedSale;
 import com.uplog.calc.portfolio.SaleShadow;
+import com.uplog.calc.portfolio.TradingCosts;
+import com.uplog.calc.portfolio.TradingHabits;
 import com.uplog.calc.portfolio.Underwater;
 import com.uplog.core.CurrencyCode;
 import com.uplog.marketdata.Instrument;
@@ -28,27 +32,47 @@ import com.uplog.marketdata.ListedInstrument;
 import com.uplog.marketdata.MarketDataRepository;
 import com.uplog.marketdata.PriceDataVersion;
 import com.uplog.portfolio.api.PortfolioDtos.AccountDto;
+import com.uplog.portfolio.api.PortfolioDtos.ActivityDto;
+import com.uplog.portfolio.api.PortfolioDtos.AveragingDownDto;
+import com.uplog.portfolio.api.PortfolioDtos.AveragingDownItem;
 import com.uplog.portfolio.api.PortfolioDtos.BenchmarkDto;
 import com.uplog.portfolio.api.PortfolioDtos.BucketDto;
 import com.uplog.portfolio.api.PortfolioDtos.CashFlowDto;
 import com.uplog.portfolio.api.PortfolioDtos.ChangeAfter;
 import com.uplog.portfolio.api.PortfolioDtos.ContributionDto;
+import com.uplog.portfolio.api.PortfolioDtos.CostByInstrument;
+import com.uplog.portfolio.api.PortfolioDtos.CostMonth;
+import com.uplog.portfolio.api.PortfolioDtos.CostTotal;
+import com.uplog.portfolio.api.PortfolioDtos.CostsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.CurrentDrawdown;
 import com.uplog.portfolio.api.PortfolioDtos.DayPnl;
 import com.uplog.portfolio.api.PortfolioDtos.DayResponse;
+import com.uplog.portfolio.api.PortfolioDtos.DividendByInstrument;
+import com.uplog.portfolio.api.PortfolioDtos.DividendItem;
+import com.uplog.portfolio.api.PortfolioDtos.DividendMonth;
+import com.uplog.portfolio.api.PortfolioDtos.DividendYear;
+import com.uplog.portfolio.api.PortfolioDtos.DividendsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.EpisodeDto;
 import com.uplog.portfolio.api.PortfolioDtos.FxItemDto;
 import com.uplog.portfolio.api.PortfolioDtos.FxResponse;
 import com.uplog.portfolio.api.PortfolioDtos.FxTotal;
+import com.uplog.portfolio.api.PortfolioDtos.HabitsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingDetailResponse;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingDto;
+import com.uplog.portfolio.api.PortfolioDtos.HoldingHabit;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingPeriodDto;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingPeriodsResponse;
+import com.uplog.portfolio.api.PortfolioDtos.HoldingSide;
 import com.uplog.portfolio.api.PortfolioDtos.InstrumentDto;
 import com.uplog.portfolio.api.PortfolioDtos.LogDay;
 import com.uplog.portfolio.api.PortfolioDtos.LogResponse;
 import com.uplog.portfolio.api.PortfolioDtos.LogStats;
 import com.uplog.portfolio.api.PortfolioDtos.LogStreaks;
+import com.uplog.portfolio.api.PortfolioDtos.MonthCell;
+import com.uplog.portfolio.api.PortfolioDtos.MonthRef;
+import com.uplog.portfolio.api.PortfolioDtos.MonthlyResponse;
+import com.uplog.portfolio.api.PortfolioDtos.MonthlyTotal;
+import com.uplog.portfolio.api.PortfolioDtos.MonthlyYear;
 import com.uplog.portfolio.api.PortfolioDtos.PositionDto;
 import com.uplog.portfolio.api.PortfolioDtos.PricePoint;
 import com.uplog.portfolio.api.PortfolioDtos.SaleDto;
@@ -188,7 +212,7 @@ public class PortfolioService {
 
     public LogResponse log(String rawYear) {
         PortfolioSnapshot s = snapshot();
-        List<Integer> years = s.log().stream().map(e -> e.date().getYear()).distinct().toList();
+        List<Integer> years = years(s);
         Integer parsed = PortfolioParams.year(rawYear, years);
         int year = parsed == null ? s.lastDate().getYear() : parsed;
         List<AccountLog.Entry> entries = s.log().stream().filter(e -> e.date().getYear() == year).toList();
@@ -412,7 +436,92 @@ public class PortfolioService {
                         rate(r.current().deepestPast()), r.current().deeperThanPast()));
     }
 
+    public MonthlyResponse monthly() {
+        MonthlyReturns.Result r = MonthlyReturns.of(snapshot().log());
+        List<MonthlyYear> years = r.years().stream()
+                .map(y -> new MonthlyYear(y.year(),
+                        y.months().stream()
+                                .map(m -> m.recorded()
+                                        ? new MonthCell(m.month().getMonthValue(), rate(m.returnRate()), m.pnl(), m.netCashFlow())
+                                        : new MonthCell(m.month().getMonthValue(), null, null, null))
+                                .toList(),
+                        new MonthlyTotal(rate(y.returnRate()), y.pnl())))
+                .toList();
+        return new MonthlyResponse(years, r.best().map(PortfolioService::monthRef).orElse(null),
+                r.worst().map(PortfolioService::monthRef).orElse(null), r.positiveMonths(), r.negativeMonths());
+    }
+
+    public HabitsResponse habits() {
+        PortfolioSnapshot s = snapshot();
+        TradingHabits.Holding h = TradingHabits.holding(s.periods());
+        TradingHabits.AveragingDown a = TradingHabits.averagingDown(s.history(), s.periods());
+        List<AveragingDownItem> items = a.items().stream()
+                .map(b -> new AveragingDownItem(b.execution().date(), instrument(s, b.execution().instrument()),
+                        local(b.execution().priceLocal()), local(b.avgCostLocal()), rate(b.belowAvg()),
+                        periodId(b.periodIndex()), rate(b.period().returnRate())))
+                .toList();
+        return new HabitsResponse(
+                new HoldingHabit(side(h.winners()), side(h.losers()), h.ratio().map(PortfolioService::rate).orElse(null),
+                        h.verdict().name()),
+                new AveragingDownDto(a.items().size(), rate(a.shareOfBuys()), a.positions(), a.positionsWon(), items),
+                TradingHabits.activity(s.log()).stream()
+                        .map(x -> new ActivityDto(x.month().toString(), x.buys(), x.sells(), rate(x.turnover())))
+                        .toList());
+    }
+
+    public DividendsResponse dividends() {
+        PortfolioSnapshot s = snapshot();
+        DividendIncome.Result r = DividendIncome.of(s.history(), s.lastObserved().value());
+        return new DividendsResponse(
+                r.months().stream()
+                        .map(m -> new DividendMonth(m.month().toString(), m.amount(), m.items().stream()
+                                .map(i -> new DividendItem(i.date(), instrument(s, i.instrument()), i.amount()))
+                                .toList()))
+                        .toList(),
+                r.byYear().stream().map(y -> new DividendYear(y.year(), y.amount())).toList(),
+                r.byInstrument().stream()
+                        .map(i -> new DividendByInstrument(instrument(s, i.instrument()), i.amount(), i.count()))
+                        .toList(),
+                r.total(), r.trailing12m(), rate(r.trailingYield()));
+    }
+
+    public CostsResponse costs(String rawYear) {
+        PortfolioSnapshot s = snapshot();
+        List<Integer> years = years(s);
+        Integer parsed = PortfolioParams.year(rawYear, years);
+        TradingCosts.Result r = TradingCosts.of(s.log(), parsed == null ? s.lastDate().getYear() : parsed);
+        return new CostsResponse(r.year(), years, cost(r.total()), cost(r.allTime()), r.profitBeforeCost(),
+                r.costShare().map(PortfolioService::rate).orElse(null),
+                r.months().stream().map(m -> new CostMonth(m.month().toString(), m.cost().fee(), m.cost().tax())).toList(),
+                r.byInstrument().stream()
+                        .map(i -> new CostByInstrument(instrument(s, i.instrument()), i.cost().fee(), i.cost().tax(), i.trades()))
+                        .toList());
+    }
+
     // ---- 변환
+
+    /** 로그에 나오는 해, 오래된 순. */
+    private static List<Integer> years(PortfolioSnapshot s) {
+        return s.log().stream().map(e -> e.date().getYear()).distinct().toList();
+    }
+
+    private static MonthRef monthRef(MonthlyReturns.Month m) {
+        return new MonthRef(m.month().getYear(), m.month().getMonthValue(), rate(m.returnRate()));
+    }
+
+    /** 보유 일수는 소수 1자리. */
+    private static HoldingSide side(TradingHabits.Side side) {
+        return new HoldingSide(side.count(), Math.round(side.avgDays() * 10) / 10.0, side.medianDays(), rate(side.avgReturn()));
+    }
+
+    private static CostTotal cost(TradingCosts.Cost c) {
+        return new CostTotal(c.fee(), c.tax(), c.cost());
+    }
+
+    /** holding-periods의 id와 같다: open 오름차순 p-1, p-2 … */
+    private static String periodId(int index) {
+        return "p-" + (index + 1);
+    }
 
     private List<SaleShadow.Judged> judge(PortfolioSnapshot s, int horizon) {
         return s.history().sales().stream()
@@ -447,7 +556,7 @@ public class PortfolioService {
     private List<HoldingPeriodDto> periods(PortfolioSnapshot s) {
         List<HoldingPeriodDto> periods = new ArrayList<>();
         for (HoldingPeriods.Period p : s.periods()) {
-            periods.add(new HoldingPeriodDto("p-" + (periods.size() + 1), instrument(s, p.instrument()), p.open(),
+            periods.add(new HoldingPeriodDto(periodId(periods.size()), instrument(s, p.instrument()), p.open(),
                     p.close().orElse(null), p.days(), rate(p.returnRate()), won(p.profit()), p.isOpen() ? "OPEN" : "CLOSED"));
         }
         return periods;

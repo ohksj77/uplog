@@ -1,5 +1,6 @@
 package com.uplog.portfolio.api;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -136,4 +137,64 @@ public final class PortfolioDtos {
     public record CurrentDrawdown(double drawdown, LocalDate peak, long days, double deepestPast, boolean deeperThanPast) {}
 
     public record UnderwaterResponse(List<UnderwaterPoint> series, List<EpisodeDto> episodes, CurrentDrawdown current) {}
+
+    // 7. GET /api/portfolio/insights/monthly
+
+    /** 기록이 없는 달은 returnRate·pnl·netCashFlow 모두 null. */
+    public record MonthCell(int month, @JsonProperty("return") Double returnRate, Long pnl, Long netCashFlow) {}
+
+    public record MonthlyTotal(@JsonProperty("return") double returnRate, long pnl) {}
+
+    /** @param months 항상 1–12월 12개 */
+    public record MonthlyYear(int year, List<MonthCell> months, MonthlyTotal total) {}
+
+    public record MonthRef(int year, int month, @JsonProperty("return") double returnRate) {}
+
+    public record MonthlyResponse(
+            List<MonthlyYear> years, MonthRef best, MonthRef worst, int positiveMonths, int negativeMonths) {}
+
+    // 8. GET /api/portfolio/insights/habits
+
+    public record HoldingSide(int count, double avgDays, double medianDays, double avgReturn) {}
+
+    /** @param verdict HOLD_LOSERS | CUT_LOSSES | BALANCED | INSUFFICIENT */
+    public record HoldingHabit(HoldingSide winners, HoldingSide losers, Double ratio, String verdict) {}
+
+    public record AveragingDownItem(
+            LocalDate date, InstrumentDto instrument, double priceLocal, double avgCostLocal, double belowAvg, String positionId,
+            double positionReturn) {}
+
+    public record AveragingDownDto(
+            int buys, double shareOfBuys, int positions, int positionsWon, List<AveragingDownItem> items) {}
+
+    /** @param month YYYY-MM */
+    public record ActivityDto(String month, int buys, int sells, double turnover) {}
+
+    public record HabitsResponse(HoldingHabit holding, AveragingDownDto averagingDown, List<ActivityDto> activity) {}
+
+    // 9. GET /api/portfolio/insights/dividends
+
+    public record DividendItem(LocalDate date, InstrumentDto instrument, long amount) {}
+
+    public record DividendMonth(String month, long amount, List<DividendItem> items) {}
+
+    public record DividendYear(int year, long amount) {}
+
+    public record DividendByInstrument(InstrumentDto instrument, long amount, int count) {}
+
+    public record DividendsResponse(
+            List<DividendMonth> months, List<DividendYear> byYear, List<DividendByInstrument> byInstrument, long total,
+            long trailing12m, double trailingYield) {}
+
+    // 10. GET /api/portfolio/insights/costs
+
+    public record CostTotal(long fee, long tax, long cost) {}
+
+    public record CostMonth(String month, long fee, long tax) {}
+
+    public record CostByInstrument(InstrumentDto instrument, long fee, long tax, int trades) {}
+
+    public record CostsResponse(
+            int year, List<Integer> availableYears, CostTotal total, CostTotal allTime, long profitBeforeCost, Double costShare,
+            List<CostMonth> months, List<CostByInstrument> byInstrument) {}
 }

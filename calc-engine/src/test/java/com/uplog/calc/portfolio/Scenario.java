@@ -89,6 +89,19 @@ final class Scenario {
         return new AccountFlow(date, AccountFlow.Type.DEPOSIT, BigDecimal.valueOf(amount));
     }
 
+    /** 손으로 만든 기록일. twrIndex·순입금 누계·기여는 비워 둔다. */
+    static AccountLog.Entry entry(LocalDate date, long value, long netCashFlow, long pnl, double dailyReturn, Execution... executions) {
+        return new AccountLog.Entry(date, false, BigDecimal.valueOf(value), BigDecimal.valueOf(netCashFlow), BigDecimal.valueOf(pnl),
+                dailyReturn, 1.0, BigDecimal.ZERO, List.of(), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                List.of(executions), List.of(), List.of());
+    }
+
+    /** 수집 실패일: AccountLog처럼 값을 비우고 체결은 다음 기록일에 둔다. */
+    static AccountLog.Entry missing(LocalDate date) {
+        return new AccountLog.Entry(date, true, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0.0, 1.0, BigDecimal.ZERO,
+                List.of(), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, List.of(), List.of(), List.of());
+    }
+
     static BigDecimal d(String value) {
         return new BigDecimal(value);
     }
