@@ -45,3 +45,42 @@ export function formatWonApprox(amount: number): string {
   const abs = Math.abs(amount);
   return abs >= 10_000 ? `${formatWonShort(abs)} 원` : formatWon(abs);
 }
+
+// ── 기준 통화(시뮬레이션 원화 / 달러 기준) ──────────────────────────────
+
+/** 금액을 나타내는 통화. 시뮬레이션 응답의 currency와 같다. */
+export type MoneyCurrency = "KRW" | "USD";
+
+const usd = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** 1234.5 → "$1,234.50", -12.3 → "-$12.30" */
+export function formatUsd(amount: number): string {
+  const cents = Math.round(amount * 100) / 100;
+  return `${cents < 0 ? "-" : ""}$${usd.format(Math.abs(cents))}`;
+}
+
+/** 원화면 "1,234원", 달러면 "$1,234.56". */
+export function formatMoney(amount: number, currency: MoneyCurrency): string {
+  return currency === "USD" ? formatUsd(amount) : formatWon(amount);
+}
+
+/**
+ * 카드·축 라벨용 짧은 금액. 원화는 formatWonShort 그대로("1.2억", "1,234만", 단위 없음 — unit이면 "원"을 붙인다),
+ * 달러는 "$1.2M", "$1.2K", "$589"(달러 기호가 단위라 unit과 상관없이 붙는다).
+ */
+export function formatMoneyShort(amount: number, currency: MoneyCurrency, { unit = false } = {}): string {
+  if (currency === "KRW") return `${formatWonShort(amount)}${unit ? "원" : ""}`;
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? "-" : "";
+  const short = (v: number) => v.toFixed(1).replace(/\.0$/, "");
+  if (abs >= 1_000_000) return `${sign}$${short(abs / 1_000_000)}M`;
+  if (abs >= 1_000) return `${sign}$${short(abs / 1_000)}K`;
+  return `${sign}$${Math.round(abs)}`;
+}
+
+/** 원화면 "+1,234원", 달러면 "+$1,234.56" / "-$12.30". 0은 부호 없음. */
+export function formatSignedMoney(amount: number, currency: MoneyCurrency): string {
+  if (currency === "KRW") return formatSignedWon(amount);
+  const cents = Math.round(amount * 100) / 100;
+  return `${cents > 0 ? "+" : ""}${formatUsd(cents)}`;
+}

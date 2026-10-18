@@ -6,7 +6,8 @@ import type { SimulationParams, SimulationResponse } from "@/lib/api/types";
 import { toSearchParams } from "@/lib/simulation-params";
 
 export type SimulationState =
-  | { status: "loading" }
+  /** previous: 조건이 바뀌어(예: 기준 통화) 다시 부르는 동안 보여 줄 직전 결과 */
+  | { status: "loading"; previous?: SimulationResponse }
   | { status: "success"; data: SimulationResponse }
   | { status: "error"; error: ApiError };
 
@@ -33,7 +34,7 @@ export function useSimulation(params: SimulationParams | null) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  let state: SimulationState = { status: "loading" };
+  let state: SimulationState = { status: "loading", previous: settled && "data" in settled ? settled.data : undefined };
   if (settled && settled.key === key) {
     state = "data" in settled ? { status: "success", data: settled.data } : { status: "error", error: settled.error };
   }

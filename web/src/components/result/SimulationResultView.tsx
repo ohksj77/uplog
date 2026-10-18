@@ -34,6 +34,10 @@ function ConnectedResultView() {
   if (!parsed.ok) {
     return <ResultError title="조건을 다시 확인해 주세요" message={parsed.error} />;
   }
+  // 기준 통화를 바꾸면 새 결과가 올 때까지 직전 결과를 흐리게 둔다(탭·보기 선택 유지)
+  if (state.status === "loading" && state.previous) {
+    return <ResultBody params={parsed.params} data={state.previous} pending />;
+  }
   if (state.status === "loading") return <ResultSkeleton />;
   if (state.status === "error" && state.error.code === REQUIRES_CONNECTION) {
     return <ConnectFirst asPageTitle />;
@@ -51,7 +55,7 @@ function ConnectedResultView() {
   return <ResultBody params={parsed.params} data={state.data} />;
 }
 
-function ResultBody({ params, data }: { params: SimulationParams; data: SimulationResponse }) {
+function ResultBody({ params, data, pending = false }: { params: SimulationParams; data: SimulationResponse; pending?: boolean }) {
   const [selected, setSelected] = useState(0);
   const [mode, setMode] = useState<LogMode>("daily");
   const baseId = useId();
@@ -60,6 +64,7 @@ function ResultBody({ params, data }: { params: SimulationParams; data: Simulati
   const index = Math.min(selected, data.results.length - 1);
   const current = data.results[index];
   const multi = data.results.length > 1;
+  const currency = data.currency ?? "KRW";
 
   if (!current) {
     return <ResultError title="결과가 비어 있어요" message="고른 종목의 결과를 받지 못했어요." />;
@@ -68,14 +73,16 @@ function ResultBody({ params, data }: { params: SimulationParams; data: Simulati
   return (
     <div className="space-y-8">
       <ResultHeader params={params} from={data.from} to={data.to} />
-      {multi && <ComparisonTable results={data.results} selected={index} />}
-      {multi && <EtfTabs etfs={data.results.map((r) => r.etf)} selected={index} onSelect={setSelected} tabId={tabId} panelId={panelId} />}
-      <div
-        id={panelId(index)}
-        role={multi ? "tabpanel" : undefined}
-        aria-labelledby={multi ? tabId(index) : undefined}
-      >
-        <EtfResult key={current.etf.code} result={current} mode={mode} onModeChange={setMode} />
+      <div aria-busy={pending} className={`space-y-8 transition-opacity ${pending ? "opacity-50" : ""}`}>
+        {multi && <ComparisonTable results={data.results} currency={currency} selected={index} />}
+        {multi && <EtfTabs etfs={data.results.map((r) => r.etf)} selected={index} onSelect={setSelected} tabId={tabId} panelId={panelId} />}
+        <div
+          id={panelId(index)}
+          role={multi ? "tabpanel" : undefined}
+          aria-labelledby={multi ? tabId(index) : undefined}
+        >
+          <EtfResult key={current.etf.code} result={current} currency={currency} mode={mode} onModeChange={setMode} />
+        </div>
       </div>
       <AccountCta />
       <p className="text-xs leading-relaxed text-muted">{data.disclaimer}</p>

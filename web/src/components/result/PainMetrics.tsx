@@ -5,8 +5,8 @@ import { STRATEGY_COLOR } from "@/components/result/series";
 import { Signed } from "@/components/result/Signed";
 import { STRATEGIES, STRATEGY_LABEL, type Strategy } from "@/components/result/text";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import type { SimulationResult } from "@/lib/api/types";
-import { formatDate, formatPercent, formatSignedWon } from "@/lib/format";
+import type { Currency, SimulationResult } from "@/lib/api/types";
+import { formatDate, formatPercent, formatSignedMoney } from "@/lib/format";
 
 /** 하락 폭·가장 아팠던 날을 무엇으로 볼지. 원금 회복 기간은 두 기준 모두 같다. */
 type Basis = "rate" | "amount";
@@ -33,10 +33,11 @@ function readBasis(): Basis {
 
 type PainMetricsProps = {
   results: Record<Strategy, SimulationResult>;
+  currency: Currency;
 };
 
 /** 고통 지표: 최대 손실 폭, 원금 회복 기간, 가장 아팠던 날. 하락 기준은 사용자가 고른다. */
-export function PainMetrics({ results }: PainMetricsProps) {
+export function PainMetrics({ results, currency }: PainMetricsProps) {
   const [basis, setBasis] = useState<Basis>(readBasis);
 
   const choose = (next: Basis) => {
@@ -59,14 +60,24 @@ export function PainMetrics({ results }: PainMetricsProps) {
       <p className="text-xs text-muted">{BASIS_HINT[basis]}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {STRATEGIES.map((s) => (
-          <PainCard key={s} strategy={s} pain={results[s].pain} basis={basis} />
+          <PainCard key={s} strategy={s} pain={results[s].pain} basis={basis} currency={currency} />
         ))}
       </div>
     </section>
   );
 }
 
-function PainCard({ strategy, pain, basis }: { strategy: Strategy; pain: SimulationResult["pain"]; basis: Basis }) {
+function PainCard({
+  strategy,
+  pain,
+  basis,
+  currency,
+}: {
+  strategy: Strategy;
+  pain: SimulationResult["pain"];
+  basis: Basis;
+  currency: Currency;
+}) {
   const { underwater } = pain;
   return (
     <article className="rounded-2xl bg-surface p-4">
@@ -75,7 +86,7 @@ function PainCard({ strategy, pain, basis }: { strategy: Strategy; pain: Simulat
         {STRATEGY_LABEL[strategy]}
       </h3>
       <dl className="mt-3 space-y-4 text-sm">
-        {basis === "rate" ? <RateDrawdown pain={pain} /> : <AmountDrawdown pain={pain} />}
+        {basis === "rate" ? <RateDrawdown pain={pain} /> : <AmountDrawdown pain={pain} currency={currency} />}
         <Metric
           label="원금 회복까지 걸린 기간"
           value={underwater == null ? "원금 아래로 내려간 적 없음" : underwater.recovered ? `${underwater.days}일` : "아직 회복 못 함"}
@@ -87,13 +98,14 @@ function PainCard({ strategy, pain, basis }: { strategy: Strategy; pain: Simulat
                 : `${formatDate(underwater.start)}부터 ${underwater.days}일째 원금 아래`
           }
         />
-        {basis === "rate" ? <RateWorstDay pain={pain} /> : <AmountWorstDay pain={pain} />}
+        {basis === "rate" ? <RateWorstDay pain={pain} /> : <AmountWorstDay pain={pain} currency={currency} />}
       </dl>
     </article>
   );
 }
 
 type PainProps = { pain: SimulationResult["pain"] };
+type AmountPainProps = PainProps & { currency: Currency };
 
 function RateDrawdown({ pain: { maxDrawdown } }: PainProps) {
   const fell = maxDrawdown.rate < 0;
@@ -106,14 +118,14 @@ function RateDrawdown({ pain: { maxDrawdown } }: PainProps) {
   );
 }
 
-function AmountDrawdown({ pain: { maxDrawdownAmount } }: PainProps) {
+function AmountDrawdown({ pain: { maxDrawdownAmount }, currency }: AmountPainProps) {
   const fell = maxDrawdownAmount.amount < 0;
   return (
     <Metric
       label="최대 손실 폭(평가손익)"
       value={
         fell ? (
-          <Signed value={maxDrawdownAmount.amount}>{formatSignedWon(maxDrawdownAmount.amount)}</Signed>
+          <Signed value={maxDrawdownAmount.amount}>{formatSignedMoney(maxDrawdownAmount.amount, currency)}</Signed>
         ) : (
           "평가손익이 줄어든 적 없음"
         )
@@ -134,12 +146,12 @@ function RateWorstDay({ pain: { worstDay } }: PainProps) {
   );
 }
 
-function AmountWorstDay({ pain: { worstDayAmount } }: PainProps) {
+function AmountWorstDay({ pain: { worstDayAmount }, currency }: AmountPainProps) {
   const fell = worstDayAmount.pnl < 0;
   return (
     <Metric
       label="가장 아팠던 날(하루 손익)"
-      value={fell ? <Signed value={worstDayAmount.pnl}>{formatSignedWon(worstDayAmount.pnl)}</Signed> : "하루도 잃지 않음"}
+      value={fell ? <Signed value={worstDayAmount.pnl}>{formatSignedMoney(worstDayAmount.pnl, currency)}</Signed> : "하루도 잃지 않음"}
       note={fell ? formatDate(worstDayAmount.date) : undefined}
     />
   );

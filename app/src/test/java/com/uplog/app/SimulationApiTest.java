@@ -132,7 +132,8 @@ class SimulationApiTest {
                 .andReturn().getResponse().getContentAsString();
 
         JsonNode root = JSON.readTree(body);
-        assertKeys(root, "from", "to", "results", "disclaimer");
+        assertKeys(root, "from", "to", "currency", "results", "disclaimer");
+        assertThat(root.get("currency").asString()).isEqualTo("KRW");
         for (JsonNode result : root.get("results")) {
             assertKeys(result, "etf", "lumpSum", "recurring");
             assertKeys(result.get("etf"), "code", "name", "market", "type", "currency");
@@ -170,6 +171,29 @@ class SimulationApiTest {
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM daily_price p JOIN instrument i ON i.id = p.instrument_id WHERE i.code = 'SPY'""", Long.class))
                 .isBetween(250L, 280L);
+    }
+
+    @Test
+    void currency_USD면_같은_매수를_달러로_나타내고_잘못된_통화는_400이다() throws Exception {
+        JsonNode krw = JSON.readTree(mvc.perform(simulation("069500,SPY").cookie(connected))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode usd = JSON.readTree(mvc.perform(simulation("069500,SPY").param("currency", "usd").cookie(connected))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currency", is("USD")))
+                .andReturn().getResponse().getContentAsString());
+        for (int i = 0; i < 2; i++) {
+            JsonNode krwDays = krw.get("results").get(i).get("recurring").get("days");
+            JsonNode usdDays = usd.get("results").get(i).get("recurring").get("days");
+            assertThat(usdDays.size()).isEqualTo(krwDays.size());
+            assertThat(count(usdDays)).isEqualTo(count(krwDays));
+            // 원화 금액을 1,000원대 환율로 나눈 달러
+            double ratio = krwDays.get(0).get("value").asDouble() / usdDays.get(0).get("value").asDouble();
+            assertThat(ratio).isBetween(900.0, 2_000.0);
+        }
+        mvc.perform(simulation("069500").param("currency", "EUR").cookie(connected))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("INVALID_PARAMETER")))
+                .andExpect(jsonPath("$.message", containsString("currency")));
     }
 
     @Test

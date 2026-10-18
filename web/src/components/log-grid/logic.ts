@@ -1,7 +1,7 @@
 // 로그 계산 — React 없는 순수 함수. 단위 테스트는 이 파일만 대상으로 하면 된다.
 import type { LogMode } from "@/components/log-grid/types";
 import type { SimulationDay } from "@/lib/api/types";
-import { formatDate, formatPercent, formatWon } from "@/lib/format";
+import { formatDate, formatMoney, formatPercent, type MoneyCurrency } from "@/lib/format";
 
 /** −4(가장 큰 손실) … 0(변동 없음) … 4(가장 큰 이익). */
 export type LogLevel = -4 | -3 | -2 | -1 | 0 | 1 | 2 | 3 | 4;
@@ -265,8 +265,17 @@ export function formatLogValue(value: number | null, mode: LogMode): string {
 }
 
 /** 칸의 스크린리더 문구(툴팁과 같은 정보). */
-export function logCellLabel(day: SimulationDay, value: number | null, mode: LogMode): string {
-  const parts = [formatLogDate(day.date), `${LOG_MODE_LABELS[mode]} ${formatLogValue(value, mode)}`, `평가금액 ${formatWon(day.value)}`];
+export function logCellLabel(
+  day: SimulationDay,
+  value: number | null,
+  mode: LogMode,
+  currency: MoneyCurrency = "KRW",
+): string {
+  const parts = [
+    formatLogDate(day.date),
+    `${LOG_MODE_LABELS[mode]} ${formatLogValue(value, mode)}`,
+    `평가금액 ${formatMoney(day.value, currency)}`,
+  ];
   if (day.purchased) parts.push("매수일");
   return parts.join(", ");
 }

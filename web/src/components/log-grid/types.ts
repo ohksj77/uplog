@@ -1,5 +1,6 @@
 import type { LogLevel } from "@/components/log-grid/logic";
 import type { SimulationDay } from "@/lib/api/types";
+import type { MoneyCurrency } from "@/lib/format";
 
 /**
  * 로그 보기 전환 (기획서 기능 A):
@@ -19,6 +20,8 @@ export type LogGridProps = {
   selectedDate?: string | null;
   /** 여러 로그를 위아래로 맞출 때 쓰는 공통 표시 구간. days 밖의 칸은 비워 둔다. */
   range?: { from: string; to: string };
+  /** 평가금액을 나타낼 통화(시뮬레이션 기준 통화). 기본 KRW */
+  currency?: MoneyCurrency;
 };
 
 // ── 범용 격자(LogGridBase) ──────────────────────────────────────────────

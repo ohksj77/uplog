@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CurrencyToggle } from "@/components/result/CurrencyToggle";
 import { PERIOD_LABEL, describePlan } from "@/components/result/text";
 import type { SimulationParams } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
@@ -26,6 +27,7 @@ export function ResultHeader({ params, from, to }: ResultHeaderProps) {
           조건 바꾸기
         </Link>
       </div>
+      <CurrencyToggle value={params.currency ?? "KRW"} />
     </header>
   );
 }

@@ -5,11 +5,12 @@ import type { LogMode } from "@/components/log-grid/types";
 import { DayDetail } from "@/components/result/DayDetail";
 import { MODE_HINT } from "@/components/result/mode-hint";
 import { STRATEGIES, STRATEGY_LABEL, type Strategy } from "@/components/result/text";
-import type { SimulationDay, SimulationResult } from "@/lib/api/types";
+import type { Currency, SimulationDay, SimulationResult } from "@/lib/api/types";
 
 type LogSectionProps = {
   etfName: string;
   results: Record<Strategy, SimulationResult>;
+  currency: Currency;
   mode: LogMode;
   onModeChange: (mode: LogMode) => void;
   selectedDate: string | null;
@@ -17,7 +18,15 @@ type LogSectionProps = {
 };
 
 /** 거치식·적립식 로그를 위아래로. 보기 전환과 고른 날은 두 줄이 함께 쓴다. */
-export function LogSection({ etfName, results, mode, onModeChange, selectedDate, onSelectDate }: LogSectionProps) {
+export function LogSection({
+  etfName,
+  results,
+  currency,
+  mode,
+  onModeChange,
+  selectedDate,
+  onSelectDate,
+}: LogSectionProps) {
   const pick = (day: SimulationDay | null) => onSelectDate(day?.date ?? null);
   const dayOf = (s: Strategy) => results[s].days.find((d) => d.date === selectedDate);
   // 적립식은 첫 매수일부터 시작하므로, 두 줄이 같은 열에 같은 날짜가 오도록 구간을 맞춘다.
@@ -49,6 +58,7 @@ export function LogSection({ etfName, results, mode, onModeChange, selectedDate,
               onSelectDay={pick}
               selectedDate={selectedDate}
               range={range}
+              currency={currency}
             />
           </div>
         </div>
@@ -58,6 +68,7 @@ export function LogSection({ etfName, results, mode, onModeChange, selectedDate,
         <DayDetail
           date={selectedDate}
           days={{ lumpSum: dayOf("lumpSum"), recurring: dayOf("recurring") }}
+          currency={currency}
           onClose={() => onSelectDate(null)}
         />
       )}

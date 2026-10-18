@@ -3,6 +3,7 @@ package com.uplog.simulation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.uplog.core.CurrencyCode;
 import java.time.DayOfWeek;
 import org.junit.jupiter.api.Test;
 
@@ -19,6 +20,20 @@ class SimulationQueryTest {
         assertThat(a.schedule()).isEqualTo(RecurringSchedule.monthly(15));
         assertThat(a.amountType()).isEqualTo(AmountType.PER_PURCHASE);
         assertThat(a.amount()).isEqualTo(300_000);
+    }
+
+    @Test
+    void 기준_통화는_KRW_또는_USD이고_없으면_KRW다() {
+        assertThat(SimulationQuery.parse("A", "6M", "DAILY", null, null, "TOTAL", "1000").currency())
+                .isEqualTo(CurrencyCode.KRW);
+        assertThat(SimulationQuery.parse("A", "6M", "DAILY", null, null, "TOTAL", "1000", " ").currency())
+                .isEqualTo(CurrencyCode.KRW);
+        SimulationQuery usd = SimulationQuery.parse("A", "6M", "DAILY", null, null, "TOTAL", "1000", "usd");
+        assertThat(usd.currency()).isEqualTo(CurrencyCode.USD);
+        // 기준 통화가 다르면 다른 요청(캐시 키도 다르다)
+        assertThat(usd).isNotEqualTo(SimulationQuery.parse("A", "6M", "DAILY", null, null, "TOTAL", "1000", "KRW"));
+        assertInvalid(() -> SimulationQuery.parse("A", "6M", "DAILY", null, null, "TOTAL", "1000", "EUR"), "currency");
+        assertInvalid(() -> SimulationQuery.parse("A", "6M", "DAILY", null, null, "TOTAL", "1000", "달러"), "currency");
     }
 
     @Test
