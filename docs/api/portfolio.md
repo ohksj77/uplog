@@ -5,7 +5,7 @@
 
 - 금액은 **원화 정수**. 해외 종목의 현지 통화 값은 `…Local` 접미사(소수 허용)를 붙인다.
 - 계좌는 요청자의 계좌다: 비로그인은 데모 계좌(`account.sample = true`, `local` 프로필에서만 시드), 로그인은 연결한 자기 계좌. 없으면 `ACCOUNT_NOT_CONNECTED`([design/account-connection.md](../design/account-connection.md)).
-- 오류 코드 추가: `ACCOUNT_NOT_CONNECTED`(404), `INSTRUMENT_NOT_FOUND`(404), `DATE_NOT_FOUND`(404: 거래일이 아니거나 기록 없음)
+- 오류 코드 추가: `ACCOUNT_NOT_CONNECTED`(404), `INSTRUMENT_NOT_FOUND`(404), `DATE_NOT_FOUND`(404: 거래일이 아니거나 기록 없음), `ACCOUNT_NOT_READY`(409: 연결 직후 역산 중이라 시세가 아직 다 들어오지 않음, 잠시 뒤 다시)
 
 ## 공통 타입
 
@@ -32,7 +32,7 @@ Trade = { date, instrument, side: "BUY" | "SELL", quantity, priceLocal, fxRate /
 | 6. 수중 차트 | `GET /api/portfolio/insights/underwater` |
 | 7. 월별 성적표 | `GET /api/portfolio/insights/monthly` |
 | 8. 매매 습관 | `GET /api/portfolio/insights/habits` |
-| 9. 배당 흐름 | `GET /api/portfolio/insights/dividends` |
+| 9. 자산 구성 변화 | `GET /api/portfolio/insights/allocation` |
 | 10. 숨은 비용 | `GET /api/portfolio/insights/costs` |
 
 ## 계산 정의
@@ -166,6 +166,7 @@ Sale = {
 ```
 
 - S&P500은 그날 USD/KRW 환율로 원화 환산한 값에 넣는다. `difference = actual − shadow`.
+- 데모 계좌는 합성 지수를 쓴다. 연결한 계좌는 실제로 살 수 있는 지수 ETF로 비교한다: `SPX` → SPY("S&P500 (SPY)"), `KOSPI200` → KODEX 200(069500, "코스피200 (KODEX 200)"). 토스 지수 API에 S&P500이 없어서다. 일봉은 수집이 받아 두고, 아직 없으면 409 `ACCOUNT_NOT_READY`.
 
 ## 3. GET /api/portfolio/insights/waterfall?period=YTD
 
@@ -187,6 +188,7 @@ Sale = {
 ```
 
 - `from`은 기간 시작 직전 거래일(그날 종가가 출발점). `total = endValue − startValue − netCashFlow = Σ items.amount`. 반올림으로 생기는 차이는 마지막에 `{ "kind": "OTHER", "label": "기타" }` 한 줄로 맞춘다(0이면 생략).
+- 금액이 0인 줄은 빼고 준다(배당·환율이 없는 계좌에서 0원 줄이 늘 보이지 않게).
 - `INSTRUMENT`: 종목별 **주가 효과**(해외는 환율 고정). 환율 효과는 모든 해외 종목을 합쳐 `FX` 한 줄. 종목은 금액 큰 순(+ 먼저, 그다음 −).
 
 ## 4. GET /api/portfolio/insights/holding-periods
@@ -282,25 +284,29 @@ FxItem = { "instrument": { … }, "quantity": 12, "avgCostLocal": 182.4, "avgFxR
   - `items`: 물타기 체결, 최신 순. `belowAvg` = 체결가 / 직전 평균 매수가 − 1(음수). `positionReturn` = 그 포지션의 수익률(보유 중이면 현재 평가 기준).
 - `activity`: 첫 기록 달부터 마지막 달까지 빠짐없이, 월별 매수·매도 체결 수와 회전율(그달 매도 금액 / 그달 평균 평가금).
 
-## 9. GET /api/portfolio/insights/dividends
+## 9. GET /api/portfolio/insights/allocation
 
-매달 배당이 얼마 들어오나.
+내 돈이 시기별로 어디에 몰려 있었나, 국내·해외 비중은 어떻게 변했나. (배당 흐름을 대신한다: 토스 Open API는 배당 내역을 주지 않는다.)
 
 ```json
 {
-  "months": [ { "month": "2026-03", "amount": 82000,
-                "items": [ { "date": "2026-03-28", "instrument": { … }, "amount": 82000 } ] } ],
-  "byYear": [ { "year": 2026, "amount": 217954 } ],
-  "byInstrument": [ { "instrument": { … }, "amount": 410000, "count": 8 } ],
-  "total": 520000,
-  "trailing12m": 290000,
-  "trailingYield": 0.0084
+  "asOf": "2026-10-16",
+  "groups": [
+    { "key": "069500", "label": "KODEX 200", "kind": "INSTRUMENT", "market": "KR" },
+    { "key": "OTHER", "label": "그 외 24종목", "kind": "OTHER", "market": null },
+    { "key": "CASH", "label": "현금", "kind": "CASH", "market": null }
+  ],
+  "points": [ { "date": "2026-01-09", "total": 24100000, "values": [ 8200000, 3100000, 1200000 ],
+                "kr": 15000000, "us": 7900000, "cash": 1200000 } ],
+  "current": [ { "key": "069500", "value": 12688540, "weight": 0.3657 } ],
+  "peak": { "key": "SMPS", "label": "Sample S&P500 ETF", "weight": 0.5123, "date": "2025-04-11" }
 }
 ```
 
-- `months`: 첫 기록 달부터 마지막 달까지 빠짐없이(배당 없는 달은 amount 0, items []), 오래된 순. 금액은 세후 원화.
-- `byYear` 오래된 순, `byInstrument` 금액 큰 순.
-- `trailing12m`: 마지막 날 기준 최근 12개월 합. `trailingYield` = trailing12m / 마지막 날 총 평가금액.
+- `groups`: 기간 평균 평가금이 큰 종목 최대 5개(평가금 큰 순) → 나머지가 있으면 `OTHER` → `CASH`. `market`은 종목만 `KR`|`US`.
+- `points`: 기록이 있는 날(MISSING 제외) 중 주마다 마지막 날 + 마지막 날, 오래된 순. `values`는 `groups` 순서와 같고 합은 `total`. `kr`+`us`+`cash` = `total`. 현금이 음수인 날(역산 추정 구간)은 0으로 둔다.
+- `current`: 마지막 날의 그룹별 평가금과 비중(0인 그룹 제외, 큰 순).
+- `peak`: 한 종목이 총평가금(현금 포함)에서 가장 큰 비중을 차지했던 때(`points`의 날 기준). 보유한 적이 없으면 null.
 
 ## 10. GET /api/portfolio/insights/costs?year=2026
 

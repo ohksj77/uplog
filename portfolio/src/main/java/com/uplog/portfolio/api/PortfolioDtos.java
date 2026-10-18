@@ -172,19 +172,26 @@ public final class PortfolioDtos {
 
     public record HabitsResponse(HoldingHabit holding, AveragingDownDto averagingDown, List<ActivityDto> activity) {}
 
-    // 9. GET /api/portfolio/insights/dividends
+    // 9. GET /api/portfolio/insights/allocation
 
-    public record DividendItem(LocalDate date, InstrumentDto instrument, long amount) {}
+    /** @param kind INSTRUMENT | OTHER | CASH, market은 종목만 KR | US */
+    public record AllocationGroup(String key, String label, String kind, String market) {}
 
-    public record DividendMonth(String month, long amount, List<DividendItem> items) {}
+    public record AllocationPoint(LocalDate date, long total, List<Long> values, long kr, long us, long cash) {}
 
-    public record DividendYear(int year, long amount) {}
+    public record AllocationShare(String key, long value, double weight) {}
 
-    public record DividendByInstrument(InstrumentDto instrument, long amount, int count) {}
+    public record AllocationPeak(String key, String label, double weight, LocalDate date) {}
 
-    public record DividendsResponse(
-            List<DividendMonth> months, List<DividendYear> byYear, List<DividendByInstrument> byInstrument, long total,
-            long trailing12m, double trailingYield) {}
+    /** @param peak 보유한 적이 없으면 null */
+    public record AllocationResponse(
+            LocalDate asOf, List<AllocationGroup> groups, List<AllocationPoint> points, List<AllocationShare> current,
+            AllocationPeak peak) {}
+
+    // GET /api/portfolio/insights/availability
+
+    /** @param reason available이 false일 때 이 계좌에 해당하지 않는 이유 */
+    public record InsightAvailability(String key, boolean available, String reason) {}
 
     // 10. GET /api/portfolio/insights/costs
 

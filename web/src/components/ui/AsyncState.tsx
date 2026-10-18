@@ -12,6 +12,20 @@ export function LoadingBlock({ height = 240, label = "불러오는 중" }: { hei
 
 export function ErrorBlock({ error, onRetry }: { error: ApiError; onRetry?: () => void }) {
   const notConnected = error.code === "ACCOUNT_NOT_CONNECTED";
+  if (error.code === "ACCOUNT_NOT_READY") {
+    // 연결 직후 역산 중: 오류가 아니라 기다리는 상태다
+    return (
+      <section role="status" aria-live="polite" className="rounded-2xl bg-surface px-5 py-10 text-center">
+        <p className="font-semibold">지난 기록을 만드는 중이에요</p>
+        <p className="mt-2 text-sm text-muted break-keep">{error.message}</p>
+        {onRetry && (
+          <button type="button" onClick={onRetry} className="mt-6 h-11 rounded-xl bg-accent px-5 text-sm font-semibold text-white">
+            다시 열기
+          </button>
+        )}
+      </section>
+    );
+  }
   // 4xx는 다시 불러도 같은 결과라 재시도 버튼을 숨긴다.
   const retryable = error.status === 0 || error.status >= 500;
   return (

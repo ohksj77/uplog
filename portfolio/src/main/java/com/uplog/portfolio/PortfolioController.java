@@ -2,12 +2,13 @@ package com.uplog.portfolio;
 
 import com.uplog.portfolio.api.PortfolioDtos.CostsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.DayResponse;
-import com.uplog.portfolio.api.PortfolioDtos.DividendsResponse;
+import com.uplog.portfolio.api.PortfolioDtos.AllocationResponse;
 import com.uplog.portfolio.api.PortfolioDtos.FxResponse;
 import com.uplog.portfolio.api.PortfolioDtos.HabitsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingDetailResponse;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingDto;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingPeriodsResponse;
+import com.uplog.portfolio.api.PortfolioDtos.InsightAvailability;
 import com.uplog.portfolio.api.PortfolioDtos.LogResponse;
 import com.uplog.portfolio.api.PortfolioDtos.MonthlyResponse;
 import com.uplog.portfolio.api.PortfolioDtos.SalesResponse;
@@ -110,9 +111,14 @@ public class PortfolioController {
         return service.habits(accounts.resolve(user));
     }
 
-    @GetMapping("/insights/dividends")
-    public DividendsResponse dividends(Optional<CurrentUser> user) {
-        return service.dividends(accounts.resolve(user));
+    @GetMapping("/insights/allocation")
+    public AllocationResponse allocation(Optional<CurrentUser> user) {
+        return service.allocation(accounts.resolve(user));
+    }
+
+    @GetMapping("/insights/availability")
+    public List<InsightAvailability> availability(Optional<CurrentUser> user) {
+        return service.availability(accounts.resolve(user));
     }
 
     @GetMapping("/insights/costs")

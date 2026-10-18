@@ -18,6 +18,13 @@
 | 입출금·배당 내역 | **API 없음** | 아래 "현금흐름 추정" |
 | 현금 잔액 | 전용 API 없음. `GET /api/v1/buying-power?currency=KRW|USD`의 `cashBuyingPower`(미수 미발생 기준 매수 가능 금액) | 현금 = 매수 가능 금액으로 근사 |
 
+## WTS 화면 (사용자 스크린샷으로 확인, 2026-10-18)
+
+- 위치: 별도 주소 없음. PC에서 https://www.tossinvest.com/ 로그인 → 오른쪽 사이드바 맨 아래 톱니(설정) → 설정 팝업 왼쪽 메뉴 **Open API**.
+- **Open API Key 관리**: Client Id(`tsck_live_…`, 복사 버튼), Client Secret(`tssk_live_…`, 발급 뒤에는 가려지고 복사 버튼 없음 → 발급할 때만 볼 수 있음), 발급일, 만료일(**발급 1년 뒤**), 상태(활성) + **재발급**.
+- **허용 IP 관리**: **IP 추가**로 여러 개 등록, 항목마다 삭제.
+- 화면 아래 "Open API 가이드 문서" 링크.
+
 ## 인증
 
 - `POST /oauth2/token` (form-urlencoded, `grant_type=client_credentials`, `client_id`, `client_secret`) → `{access_token, token_type, expires_in}`. refresh token은 없고, 만료되면 다시 발급받는다.

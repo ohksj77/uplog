@@ -131,9 +131,11 @@ public class TossClient {
             log.debug("토스 토큰 발급: clientId={}…, 만료 {}초", prefix(credentials.clientId()), expiresIn);
             return new TossTokenCache.Token(accessToken, clock.instant().plusSeconds(Math.max(expiresIn, 60)));
         }
-        String error = parseQuietly(raw.body()).path("error").asString("");
+        JsonNode errorBody = parseQuietly(raw.body());
+        String error = errorBody.path("error").asString("");
         throw switch (raw.status()) {
-            case 400, 401 -> new BrokerException(Reason.INVALID_CREDENTIALS, "토스 키 인증 실패(" + error + ")");
+            case 400, 401 -> new BrokerException(Reason.INVALID_CREDENTIALS, "토스 키 인증 실패(" + error + ")",
+                    credentialField(errorBody.path("error_description").asString("")));
             case 403 -> new BrokerException(Reason.IP_NOT_ALLOWED, "허용되지 않은 IP에서 토큰을 요청했습니다(" + error + ")");
             default -> failure(raw, TossOutboundGuard.TOKEN_PATH);
         };
@@ -276,5 +278,19 @@ public class TossClient {
         java.util.List<String> names = new java.util.ArrayList<>();
         node.propertyNames().forEach(names::add);
         return names;
+    }
+
+    /**
+     * 토스 FAQ: error_description에 client_id와 client_secret 중 어느 쪽 검증이 실패했는지 나온다
+     * (예: "Client authentication failed: client_secret", "OAuth 2.0 Parameter: client_secret").
+     */
+    static String credentialField(String description) {
+        if (description.contains("client_secret")) {
+            return "clientSecret";
+        }
+        if (description.contains("client_id")) {
+            return "clientId";
+        }
+        return null;
     }
 }

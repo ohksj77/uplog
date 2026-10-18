@@ -6,6 +6,7 @@ import com.uplog.portfolio.connection.ConnectionDtos.ConnectRequest;
 import com.uplog.portfolio.connection.ConnectionDtos.ConnectResponse;
 import com.uplog.portfolio.connection.ConnectionDtos.ConnectionStatusResponse;
 import com.uplog.portfolio.connection.ConnectionDtos.MeResponse;
+import com.uplog.portfolio.connection.ConnectionDtos.RekeyRequest;
 import com.uplog.portfolio.connection.ConnectionDtos.SetupResponse;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -50,6 +52,13 @@ public class ConnectionController {
             CurrentUser user, @RequestBody(required = false) ChooseAccountRequest request) {
         ChooseAccountRequest r = request == null ? new ChooseAccountRequest(null, null, null) : request;
         return created(service.chooseAccount(user.id(), r.clientId(), r.clientSecret(), r.accountSeq()));
+    }
+
+    @PutMapping("/api/connections/toss/credentials")
+    public ResponseEntity<Void> rekey(CurrentUser user, @RequestBody(required = false) RekeyRequest request) {
+        RekeyRequest r = request == null ? new RekeyRequest(null, null) : request;
+        service.rekey(user.id(), r.clientId(), r.clientSecret());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/api/connections/toss")

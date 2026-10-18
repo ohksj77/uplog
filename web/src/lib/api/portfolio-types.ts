@@ -237,14 +237,31 @@ export type HabitsInsight = {
   activity: { month: string; buys: number; sells: number; turnover: number }[];
 };
 
-export type DividendsInsight = {
-  months: { month: string; amount: number; items: { date: IsoDate; instrument: Instrument; amount: number }[] }[];
-  byYear: { year: number; amount: number }[];
-  byInstrument: { instrument: Instrument; amount: number; count: number }[];
-  total: number;
-  trailing12m: number;
-  trailingYield: number;
+export type AllocationGroupKind = "INSTRUMENT" | "OTHER" | "CASH";
+
+/** 자산 구성 변화. points[].values는 groups 순서. */
+export type AllocationInsight = {
+  asOf: IsoDate;
+  groups: { key: string; label: string; kind: AllocationGroupKind; market: Market | null }[];
+  points: { date: IsoDate; total: number; values: number[]; kr: number; us: number; cash: number }[];
+  current: { key: string; value: number; weight: number }[];
+  peak: { key: string; label: string; weight: number; date: IsoDate } | null;
 };
+
+export type InsightKey =
+  | "sales"
+  | "shadow"
+  | "waterfall"
+  | "holding-periods"
+  | "fx"
+  | "underwater"
+  | "monthly"
+  | "habits"
+  | "allocation"
+  | "costs";
+
+/** 분석 화면이 이 계좌에 해당하는지. 해당하지 않으면 reason */
+export type InsightAvailability = { key: InsightKey; available: boolean; reason: string | null };
 
 export type CostsInsight = {
   year: number;

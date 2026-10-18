@@ -1,9 +1,10 @@
 import { get, USE_MOCK } from "@/lib/api/client";
 import type {
+  AllocationInsight,
   BenchmarkCode,
   CostsInsight,
-  DividendsInsight,
   HabitsInsight,
+  InsightAvailability,
   MonthlyInsight,
   FxInsight,
   Holding,
@@ -97,12 +98,17 @@ export function getHabitsInsight(signal?: AbortSignal): Promise<HabitsInsight> {
   return get("/api/portfolio/insights/habits", signal);
 }
 
-export function getDividendsInsight(signal?: AbortSignal): Promise<DividendsInsight> {
-  if (USE_MOCK) return mock(() => income.mockDividends());
-  return get("/api/portfolio/insights/dividends", signal);
+export function getAllocationInsight(signal?: AbortSignal): Promise<AllocationInsight> {
+  if (USE_MOCK) return mock(() => market.mockAllocation());
+  return get("/api/portfolio/insights/allocation", signal);
 }
 
 export function getCostsInsight(year: number | null, signal?: AbortSignal): Promise<CostsInsight> {
   if (USE_MOCK) return mock(() => income.mockCosts(year));
   return get(`/api/portfolio/insights/costs${year ? `?year=${year}` : ""}`, signal);
+}
+
+export function getInsightAvailability(signal?: AbortSignal): Promise<InsightAvailability[]> {
+  if (USE_MOCK) return mock(() => market.mockAvailability());
+  return get("/api/portfolio/insights/availability", signal);
 }

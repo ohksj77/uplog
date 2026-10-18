@@ -50,7 +50,8 @@ uplog:
   # 토스를 호출하는 서버의 고정 IP(쉼표로 구분). 연결 안내에서 사용자가 토스 허용 IP에 등록한다.
   egress-ips: ${UPLOG_EGRESS_IPS:}
   connection:
-    key-page-url: https://tossinvest.com
+    # Open API는 별도 주소 없이 tossinvest.com 설정(톱니) 팝업의 Open API 메뉴에 있다
+    key-page-url: https://www.tossinvest.com/
     sync-interval: 1h
   toss:
     # 토스증권 Open API. 클라이언트는 POST /oauth2/token과 조회용 GET만 보낼 수 있다(허용 목록).
@@ -82,7 +83,9 @@ spring:
     activate:
       on-profile: local
   datasource:
-    url: jdbc:h2:mem:uplog;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    # 기본은 메모리(재시작하면 비워짐, 테스트도 이걸 쓴다). 연결을 유지하려면 파일로:
+    # UPLOG_LOCAL_DB_URL='jdbc:h2:file:~/.uplog/local;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH'
+    url: ${UPLOG_LOCAL_DB_URL:jdbc:h2:mem:uplog;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1}
     username: sa
     password: ""
 

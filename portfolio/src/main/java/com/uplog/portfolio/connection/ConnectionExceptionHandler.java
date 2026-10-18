@@ -27,7 +27,7 @@ public class ConnectionExceptionHandler {
             builder.header(HttpHeaders.RETRY_AFTER, String.valueOf(Math.max(1, e.retryAfter().toSeconds())));
         }
         return builder.body(new ErrorResponse(e.code().name(), e.getMessage(),
-                e.code() == ConnectionErrorCode.TOSS_IP_NOT_ALLOWED ? egress.egressIps() : null));
+                e.code() == ConnectionErrorCode.TOSS_IP_NOT_ALLOWED ? egress.egressIps() : null, e.field()));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

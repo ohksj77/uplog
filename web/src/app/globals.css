@@ -34,6 +34,15 @@
   --series-recurring: #c27c0e;
   --trade-buy: #0d9f7a;
   --trade-sell: #c27c0e;
+
+  /* 구성(정체성) 범주 색. 빨강·파랑은 이익·손실에 남겨 두고 쓰지 않는다. dataviz 검증기 통과(라이트·다크). */
+  --cat-1: #eb6834;
+  --cat-2: #1baf7a;
+  --cat-3: #eda100;
+  --cat-4: #6250d6;
+  --cat-5: #008300;
+  --cat-other: #8a8f98;
+  --cat-cash: #c9ced6;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -64,6 +73,14 @@
     --series-recurring: #e3a33a;
     --trade-buy: #2fbf96;
     --trade-sell: #e3a33a;
+
+    --cat-1: #d95926;
+    --cat-2: #199e70;
+    --cat-3: #c98500;
+    --cat-4: #9085e9;
+    --cat-5: #008300;
+    --cat-other: #6b7280;
+    --cat-cash: #3a3f48;
   }
 }
 
@@ -94,6 +111,14 @@
   --series-recurring: #e3a33a;
   --trade-buy: #2fbf96;
   --trade-sell: #e3a33a;
+
+  --cat-1: #d95926;
+  --cat-2: #199e70;
+  --cat-3: #c98500;
+  --cat-4: #9085e9;
+  --cat-5: #008300;
+  --cat-other: #6b7280;
+  --cat-cash: #3a3f48;
 }
 
 @theme inline {
