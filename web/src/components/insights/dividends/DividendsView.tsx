@@ -17,6 +17,14 @@ export function DividendsView() {
 }
 
 function Body({ data }: { data: DividendsInsight }) {
+  if (!data.available) {
+    return (
+      <section className="rounded-2xl bg-surface px-5 py-10 text-center">
+        <p className="font-semibold">이 계좌의 배당은 아직 알 수 없어요</p>
+        <p className="mt-2 text-sm text-muted break-keep">{data.note}</p>
+      </section>
+    );
+  }
   if (data.total === 0 || data.months.length === 0) {
     return (
       <section className="rounded-2xl bg-surface px-5 py-10 text-center">

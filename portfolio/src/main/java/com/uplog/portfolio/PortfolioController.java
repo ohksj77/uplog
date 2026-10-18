@@ -8,6 +8,7 @@ import com.uplog.portfolio.api.PortfolioDtos.HabitsResponse;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingDetailResponse;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingDto;
 import com.uplog.portfolio.api.PortfolioDtos.HoldingPeriodsResponse;
+import com.uplog.portfolio.api.PortfolioDtos.InsightAvailability;
 import com.uplog.portfolio.api.PortfolioDtos.LogResponse;
 import com.uplog.portfolio.api.PortfolioDtos.MonthlyResponse;
 import com.uplog.portfolio.api.PortfolioDtos.SalesResponse;
@@ -113,6 +114,11 @@ public class PortfolioController {
     @GetMapping("/insights/dividends")
     public DividendsResponse dividends(Optional<CurrentUser> user) {
         return service.dividends(accounts.resolve(user));
+    }
+
+    @GetMapping("/insights/availability")
+    public List<InsightAvailability> availability(Optional<CurrentUser> user) {
+        return service.availability(accounts.resolve(user));
     }
 
     @GetMapping("/insights/costs")

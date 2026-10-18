@@ -5,7 +5,7 @@
 
 - 금액은 **원화 정수**. 해외 종목의 현지 통화 값은 `…Local` 접미사(소수 허용)를 붙인다.
 - 계좌는 요청자의 계좌다: 비로그인은 데모 계좌(`account.sample = true`, `local` 프로필에서만 시드), 로그인은 연결한 자기 계좌. 없으면 `ACCOUNT_NOT_CONNECTED`([design/account-connection.md](../design/account-connection.md)).
-- 오류 코드 추가: `ACCOUNT_NOT_CONNECTED`(404), `INSTRUMENT_NOT_FOUND`(404), `DATE_NOT_FOUND`(404: 거래일이 아니거나 기록 없음)
+- 오류 코드 추가: `ACCOUNT_NOT_CONNECTED`(404), `INSTRUMENT_NOT_FOUND`(404), `DATE_NOT_FOUND`(404: 거래일이 아니거나 기록 없음), `ACCOUNT_NOT_READY`(409: 연결 직후 역산 중이라 시세가 아직 다 들어오지 않음, 잠시 뒤 다시)
 
 ## 공통 타입
 
@@ -166,6 +166,7 @@ Sale = {
 ```
 
 - S&P500은 그날 USD/KRW 환율로 원화 환산한 값에 넣는다. `difference = actual − shadow`.
+- 데모 계좌는 합성 지수를 쓴다. 연결한 계좌는 실제로 살 수 있는 지수 ETF로 비교한다: `SPX` → SPY("S&P500 (SPY)"), `KOSPI200` → KODEX 200(069500, "코스피200 (KODEX 200)"). 토스 지수 API에 S&P500이 없어서다. 일봉은 수집이 받아 두고, 아직 없으면 409 `ACCOUNT_NOT_READY`.
 
 ## 3. GET /api/portfolio/insights/waterfall?period=YTD
 
@@ -187,6 +188,7 @@ Sale = {
 ```
 
 - `from`은 기간 시작 직전 거래일(그날 종가가 출발점). `total = endValue − startValue − netCashFlow = Σ items.amount`. 반올림으로 생기는 차이는 마지막에 `{ "kind": "OTHER", "label": "기타" }` 한 줄로 맞춘다(0이면 생략).
+- 금액이 0인 줄은 빼고 준다(배당·환율이 없는 계좌에서 0원 줄이 늘 보이지 않게).
 - `INSTRUMENT`: 종목별 **주가 효과**(해외는 환율 고정). 환율 효과는 모든 해외 종목을 합쳐 `FX` 한 줄. 종목은 금액 큰 순(+ 먼저, 그다음 −).
 
 ## 4. GET /api/portfolio/insights/holding-periods
@@ -301,6 +303,19 @@ FxItem = { "instrument": { … }, "quantity": 12, "avgCostLocal": 182.4, "avgFxR
 - `months`: 첫 기록 달부터 마지막 달까지 빠짐없이(배당 없는 달은 amount 0, items []), 오래된 순. 금액은 세후 원화.
 - `byYear` 오래된 순, `byInstrument` 금액 큰 순.
 - `trailing12m`: 마지막 날 기준 최근 12개월 합. `trailingYield` = trailing12m / 마지막 날 총 평가금액.
+- `available`, `note`: 토스 Open API는 배당 내역을 주지 않아서, 연결한 계좌는 배당 기록이 없으면 `available: false`와 이유(`note`)를 준다. 이때 금액은 모두 0이며 "배당 없음"이 아니라 "알 수 없음"이다.
+
+## GET /api/portfolio/insights/availability
+
+분석 화면마다 이 계좌에 해당하는지. 분석 목록이 해당하지 않는 화면을 따로 모아 이유와 함께 보여 준다.
+
+```json
+[ { "key": "sales", "available": true, "reason": null },
+  { "key": "fx", "available": false, "reason": "지금 보유한 해외 종목이 없어요." },
+  { "key": "dividends", "available": false, "reason": "토스증권 Open API는 배당 내역을 주지 않아서 …" } ]
+```
+
+- `key` 순서와 값: `sales`, `shadow`, `waterfall`, `holding-periods`, `fx`, `underwater`, `monthly`, `habits`, `dividends`, `costs`. `reason`은 `available`이 false일 때만.
 
 ## 10. GET /api/portfolio/insights/costs?year=2026
 

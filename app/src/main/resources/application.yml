@@ -82,7 +82,9 @@ spring:
     activate:
       on-profile: local
   datasource:
-    url: jdbc:h2:mem:uplog;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    # 기본은 메모리(재시작하면 비워짐, 테스트도 이걸 쓴다). 연결을 유지하려면 파일로:
+    # UPLOG_LOCAL_DB_URL='jdbc:h2:file:~/.uplog/local;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH'
+    url: ${UPLOG_LOCAL_DB_URL:jdbc:h2:mem:uplog;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1}
     username: sa
     password: ""
 

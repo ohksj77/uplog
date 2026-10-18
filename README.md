@@ -23,6 +23,7 @@ curl 'localhost:8080/api/portfolio/insights/waterfall?period=YTD'
 - 기능 B(`/api/portfolio/**`)는 `local` 프로필에서만 합성 **데모 계좌**(`sample: true`)로 뜬다: 샘플 종목 8개(S00001–S00004, SMPT·SMPC·SMPS·SMPE), 합성 지수 SPX·KOSPI200, USD/KRW 환율 약 3년치와 약 2년치 입출금·체결·배당. 로그인한 사용자는 자기 연결 계좌를 본다.
 - `local`은 **진짜 토스 Open API**에 붙는다. 토스 WTS의 허용 IP 관리에 이 컴퓨터의 공인 IP를 등록하고, 서버를 그 IP와 함께 실행한다:
   `UPLOG_EGRESS_IPS=$(curl -s https://api.ipify.org) ./gradlew :app:bootRun --args='--spring.profiles.active=local,api'`
+- 재시작해도 로그인·연결을 유지하려면 파일 DB로: `UPLOG_LOCAL_DB_URL='jdbc:h2:file:~/.uplog/local;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH'`
 - 키 없이 흐름만 보려면 `fake-toss` 프로필을 **명시적으로** 켠다: `--spring.profiles.active=local,api,fake-toss`. 같은 앱에 **가짜 토스 서버**(`/__fake-toss/**`, 명세와 같은 경로·형식, 결정적 합성 데이터)가 뜨고 토스 클라이언트가 그쪽을 부른다. 이때 연결한 계좌는 "가짜 토스 계좌(개발용)" 샘플 계좌로 만들어지고, 연결 화면과 홈에 가짜 서버라는 안내가 뜬다. 진짜 키를 넣어도 진짜 토스로 가지 않으니 넣지 않는다. 개발용 로그인 뒤 아무 키(예: `clientId=dev`, `clientSecret=dev`)로 연결하면 역산·첫 일일 수집이 몇 초 안에 끝난다. 키 규칙: `clientSecret=invalid` → 잘못된 키, `clientId`가 `ip-blocked`로 시작 → IP 미등록, `multi`로 시작 → 계좌 2개, `no-account`로 시작 → 종합매매 계좌 없음.
 - 테스트·빌드: `./gradlew build` (경고도 오류로 본다: `-Xlint:all -Werror`).
 

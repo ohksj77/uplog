@@ -1,6 +1,7 @@
 import type { IsoDate } from "@/lib/api/types";
 import type {
   BenchmarkCode,
+  InsightAvailability,
   ShadowInsight,
   UnderwaterInsight,
   WaterfallInsight,
@@ -197,4 +198,12 @@ export function mockUnderwater(): UnderwaterInsight {
     : { drawdown: 0, peak: last.date, days: 0, deepestPast: past, deeperThanPast: false };
 
   return { series, episodes, current };
+}
+
+/** 샘플 계좌는 모든 분석에 해당한다. */
+export function mockAvailability(): InsightAvailability[] {
+  const keys: InsightAvailability["key"][] = [
+    "sales", "shadow", "waterfall", "holding-periods", "fx", "underwater", "monthly", "habits", "dividends", "costs",
+  ];
+  return keys.map((key) => ({ key, available: true, reason: null }));
 }

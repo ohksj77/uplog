@@ -334,7 +334,10 @@ class PortfolioApiTest {
             long total = r.get("total").asLong();
             assertThat(sum).as(period).isEqualTo(total);
             assertThat(total).isEqualTo(r.get("endValue").asLong() - r.get("startValue").asLong() - r.get("netCashFlow").asLong());
-            assertThat(kinds).contains("DIVIDEND", "FEE", "TAX", "FX");
+            // 0원인 줄은 내 계좌와 상관없으니 빠진다
+            for (JsonNode item : r.get("items")) {
+                assertThat(item.get("amount").asLong()).as(item.get("label").asString()).isNotZero();
+            }
             r.get("items").forEach(item -> {
                 if (item.get("kind").asString().equals("OTHER")) {
                     assertThat(item.get("amount").asLong()).isNotZero(); // 0이면 생략
@@ -528,7 +531,10 @@ class PortfolioApiTest {
     @Test
     void 배당_흐름은_달이_빠짐없고_월_연_종목별_합이_총액과_같다() throws Exception {
         JsonNode r = fetch("/api/portfolio/insights/dividends");
-        assertKeys(r, "months", "byYear", "byInstrument", "total", "trailing12m", "trailingYield");
+        assertKeys(r, "months", "byYear", "byInstrument", "total", "trailing12m", "trailingYield", "available", "note");
+        // 데모 계좌는 배당 기록이 있어 알 수 있다(연결한 토스 계좌는 API가 배당을 주지 않아 false)
+        assertThat(r.get("available").asBoolean()).isTrue();
+        assertThat(r.get("note").isNull()).isTrue();
         assertIntegral(r, "total", "trailing12m");
         long total = r.get("total").asLong();
         assertThat(total).isPositive();
@@ -673,5 +679,21 @@ class PortfolioApiTest {
         }
         assertThat(actual).as(node.toString().substring(0, Math.min(80, node.toString().length())))
                 .containsExactlyInAnyOrder(keys);
+    }
+
+    @Test
+    void 분석_목록은_화면마다_이_계좌에_해당하는지와_이유를_준다() throws Exception {
+        JsonNode r = fetch("/api/portfolio/insights/availability");
+
+        List<String> keys = new ArrayList<>();
+        r.forEach(item -> {
+            keys.add(item.get("key").asString());
+            boolean available = item.get("available").asBoolean();
+            assertThat(item.get("reason").isNull()).as(item.get("key").asString()).isEqualTo(available);
+        });
+        assertThat(keys).containsExactly("sales", "shadow", "waterfall", "holding-periods", "fx", "underwater", "monthly",
+                "habits", "dividends", "costs");
+        // 데모 계좌는 매도·해외 종목·배당이 모두 있어 전부 해당한다
+        r.forEach(item -> assertThat(item.get("available").asBoolean()).as(item.get("key").asString()).isTrue());
     }
 }

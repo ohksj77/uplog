@@ -121,6 +121,7 @@ public class IngestRunner implements JobHandler {
 
         List<String> symbols = store.tradedSymbols(ctx.accountId());
         int candles = syncCandles(ctx, symbols, asOf, f -> progress.report(0.4 + 0.35 * f));
+        candles += syncBenchmarks(ctx, asOf);
         int fxDays = store.firstUsdTradeDate(ctx.accountId())
                 .map(first -> sync.syncFx(ctx.credentials(), first.minusDays(7), asOf, f -> progress.report(0.75 + 0.2 * f)))
                 .orElse(0);
@@ -177,8 +178,12 @@ public class IngestRunner implements JobHandler {
 
         List<String> symbols = store.tradedSymbols(ctx.accountId());
         syncCandles(ctx, symbols, asOf, f -> {});
+        syncBenchmarks(ctx, asOf);
+        // 시뮬레이션(최대 3년)과 해외 종목 평가에 쓰도록 실제 USD/KRW를 3년치 채워 둔다. 빈 날만 받으므로 처음 한 번만 오래 걸린다.
         LocalDate fxFrom = store.firstUsdTradeDate(ctx.accountId()).map(d -> d.minusDays(7)).orElse(asOf.minusDays(7));
-        sync.syncFx(ctx.credentials(), fxFrom, asOf, MarketDataSync.ProgressListener.NONE);
+        LocalDate threeYears = asOf.minusYears(3).minusDays(7);
+        sync.syncFx(ctx.credentials(), fxFrom.isBefore(threeYears) ? fxFrom : threeYears, asOf,
+                MarketDataSync.ProgressListener.NONE);
         BigDecimal fx = fxAt(ctx.credentials(), asOf.atTime(MarketDataSync.FX_TIME).atZone(SEOUL).toOffsetDateTime(), asOf);
 
         store.replaceHoldings(ctx.accountId(), asOf, holdings);
@@ -339,6 +344,25 @@ public class IngestRunner implements JobHandler {
         return marketData.loadFxRates(MarketDataSync.USD_KRW, date.minusDays(30), date)
                 .flatMap(s -> s.closeOnOrBefore(date))
                 .orElseThrow(() -> new IllegalStateException("USD/KRW 환율을 구할 수 없습니다: " + at));
+    }
+
+    /** 그림자 계좌가 비교할 지수 ETF(KODEX 200, SPY)의 일봉을 계좌의 첫 거래 무렵부터 받는다. */
+    private int syncBenchmarks(Context ctx, LocalDate asOf) {
+        LocalDate first = portfolio.trades(ctx.accountId()).stream().map(Execution::date)
+                .min(Comparator.naturalOrder()).orElse(asOf);
+        LocalDate from = sync.lookbackStart(first, properties.candleLookback());
+        sync.ensureInstrument("069500", "KODEX 200", BrokerPort.Market.KR, CurrencyCode.KRW);
+        sync.ensureInstrument("SPY", "SPDR S&P 500 ETF Trust", BrokerPort.Market.US, CurrencyCode.USD);
+        int total = 0;
+        for (String symbol : List.of("069500", "SPY")) {
+            try {
+                total += sync.syncCandles(ctx.credentials(), symbol, from, asOf, null);
+            } catch (RuntimeException e) {
+                // 비교용이라 실패해도 계좌 수집은 계속한다. 그림자 계좌 화면이 "아직 받지 못했어요"로 알린다.
+                log.warn("계좌 {} 비교 지수 ETF {} 일봉 수집 실패: {}", ctx.accountId(), symbol, e.getClass().getSimpleName());
+            }
+        }
+        return total;
     }
 
     private int syncCandles(Context ctx, List<String> symbols, LocalDate asOf, MarketDataSync.ProgressListener progress) {

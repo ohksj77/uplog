@@ -104,6 +104,8 @@ export function mockDividends(): DividendsInsight {
     total: all.reduce((s, e) => s + e.amount, 0),
     trailing12m,
     trailingYield: totalValue > 0 ? round4(trailing12m / totalValue) : 0,
+    available: true,
+    note: null,
   };
 }
 

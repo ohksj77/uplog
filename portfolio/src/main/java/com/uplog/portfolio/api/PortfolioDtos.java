@@ -182,9 +182,18 @@ public final class PortfolioDtos {
 
     public record DividendByInstrument(InstrumentDto instrument, long amount, int count) {}
 
+    /**
+     * @param available 이 계좌의 배당 내역을 알 수 있는지. 토스 Open API는 배당 내역을 주지 않아 연결한 계좌는 false
+     * @param note available이 false일 때 화면에 보여 줄 이유
+     */
     public record DividendsResponse(
             List<DividendMonth> months, List<DividendYear> byYear, List<DividendByInstrument> byInstrument, long total,
-            long trailing12m, double trailingYield) {}
+            long trailing12m, double trailingYield, boolean available, String note) {}
+
+    // GET /api/portfolio/insights/availability
+
+    /** @param reason available이 false일 때 이 계좌에 해당하지 않는 이유 */
+    public record InsightAvailability(String key, boolean available, String reason) {}
 
     // 10. GET /api/portfolio/insights/costs
 

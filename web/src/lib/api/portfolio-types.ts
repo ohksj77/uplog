@@ -244,7 +244,26 @@ export type DividendsInsight = {
   total: number;
   trailing12m: number;
   trailingYield: number;
+  /** 이 계좌의 배당 내역을 알 수 있는지(토스 Open API는 배당 내역을 주지 않아 연결한 계좌는 false) */
+  available: boolean;
+  /** available이 false일 때 보여 줄 이유 */
+  note: string | null;
 };
+
+export type InsightKey =
+  | "sales"
+  | "shadow"
+  | "waterfall"
+  | "holding-periods"
+  | "fx"
+  | "underwater"
+  | "monthly"
+  | "habits"
+  | "dividends"
+  | "costs";
+
+/** 분석 화면이 이 계좌에 해당하는지. 해당하지 않으면 reason */
+export type InsightAvailability = { key: InsightKey; available: boolean; reason: string | null };
 
 export type CostsInsight = {
   year: number;

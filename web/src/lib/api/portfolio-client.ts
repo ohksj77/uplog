@@ -4,6 +4,7 @@ import type {
   CostsInsight,
   DividendsInsight,
   HabitsInsight,
+  InsightAvailability,
   MonthlyInsight,
   FxInsight,
   Holding,
@@ -105,4 +106,9 @@ export function getDividendsInsight(signal?: AbortSignal): Promise<DividendsInsi
 export function getCostsInsight(year: number | null, signal?: AbortSignal): Promise<CostsInsight> {
   if (USE_MOCK) return mock(() => income.mockCosts(year));
   return get(`/api/portfolio/insights/costs${year ? `?year=${year}` : ""}`, signal);
+}
+
+export function getInsightAvailability(signal?: AbortSignal): Promise<InsightAvailability[]> {
+  if (USE_MOCK) return mock(() => market.mockAvailability());
+  return get("/api/portfolio/insights/availability", signal);
 }
