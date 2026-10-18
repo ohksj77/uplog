@@ -92,6 +92,11 @@ uplog:
     session-secret: ${UPLOG_SESSION_SECRET:uplog-local-dev-session-secret-not-for-production}
   # 진짜 토스에 붙을 때 사용자가 허용 IP로 등록할 이 서버의 공인 IP. 비어 있으면 연결 화면이 IP를 보여 주지 못한다.
   egress-ips: ${UPLOG_EGRESS_IPS:}
+
+# 토스 응답의 키 이름(값 제외)을 남겨 실제 응답 형식을 확인한다
+logging:
+  level:
+    com.uplog.broker.toss.TossClient: DEBUG
   ingest:
     backoff: 5s
 

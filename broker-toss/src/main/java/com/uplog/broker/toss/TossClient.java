@@ -99,7 +99,15 @@ public class TossClient {
             }
         }
         if (raw.ok()) {
-            return parse(raw.body()).path("result");
+            JsonNode body = parse(raw.body());
+            JsonNode result = body.path("result");
+            if (result.isMissingNode() || result.isNull()) {
+                // 형식이 다르면 빈 값(0종목·0원)으로 조용히 넘어가지 않게 실패시킨다. 값은 빼고 키 이름만 남긴다.
+                log.warn("토스 응답에 result가 없습니다: {} 최상위 키 {}", path, fieldNames(body));
+                throw new BrokerException(Reason.UNAVAILABLE, "토스 응답 형식이 예상과 다릅니다(" + path + ")");
+            }
+            log.debug("토스 응답 {}: result 키 {}", path, fieldNames(result));
+            return result;
         }
         if (raw.status() == 404 && notFoundAsNull) {
             return null;
@@ -261,5 +269,12 @@ public class TossClient {
 
     private static String prefix(String clientId) {
         return clientId.length() <= 6 ? clientId : clientId.substring(0, 6);
+    }
+
+    /** 로그용: 값 없이 키 이름만. */
+    private static java.util.List<String> fieldNames(JsonNode node) {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        node.propertyNames().forEach(names::add);
+        return names;
     }
 }

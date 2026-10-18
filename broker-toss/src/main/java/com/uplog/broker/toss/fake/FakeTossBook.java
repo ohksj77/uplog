@@ -146,7 +146,7 @@ final class FakeTossBook {
         OffsetDateTime filledOffset = filledAt.withZoneSameInstant(FakeTossMarket.SEOUL).toOffsetDateTime();
         boolean anyFill = filled.signum() > 0;
         orders.add(new Order(
-                "fake-" + d.toString().replace("-", "") + "-" + seq,
+                fakeOrderId(d, seq),
                 s,
                 sell ? "SELL" : "BUY",
                 status,
@@ -208,5 +208,19 @@ final class FakeTossBook {
 
     BigDecimal usd() {
         return usd.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** 진짜 토스 orderId처럼 86자 base64url. 길이 제약 회귀를 잡으려고 실제 길이에 맞춘다(결정적). */
+    static String fakeOrderId(LocalDate date, int seq) {
+        try {
+            java.security.MessageDigest sha = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] first = sha.digest(("fake-order-" + date + "-" + seq).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            byte[] second = sha.digest(first);
+            String id = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(first)
+                    + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(second);
+            return id.substring(0, 86);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }
