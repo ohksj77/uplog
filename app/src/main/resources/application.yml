@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: uplog
+  profiles:
+    default: api
+  datasource:
+    # 운영: PostgreSQL. 값은 환경변수로 넣는다(로컬 Postgres는 루트의 docker-compose.yml).
+    url: ${UPLOG_DB_URL:jdbc:postgresql://localhost:5432/uplog}
+    username: ${UPLOG_DB_USERNAME:uplog}
+    password: ${UPLOG_DB_PASSWORD:uplog}
+  flyway:
+    # 마이그레이션은 각 모듈의 db/migration(예: market-data)에 둔다.
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+uplog:
+  market-data:
+    public-data:
+      # 공공데이터포털 금융위원회_증권상품시세정보 인증키(Decoding). 비어 있으면 ETF 시세 수집 잡이 뜨지 않는다.
+      service-key: ${UPLOG_PUBLIC_DATA_SERVICE_KEY:}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: batch
+  main:
+    web-application-type: none
+
+---
+# Docker 없이 띄우는 개발용 프로필: H2(PostgreSQL 모드) 메모리 DB + 합성 샘플 ETF 4종.
+# ./gradlew :app:bootRun --args='--spring.profiles.active=local,api'
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:h2:mem:uplog;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""

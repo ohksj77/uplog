@@ -1,0 +1,9 @@
+{
+  "response": {
+    "header": { "resultCode": "00", "resultMsg": "NORMAL SERVICE." },
+    "body": {
+      "numOfRows": 2, "pageNo": 2, "totalCount": 3,
+      "items": { "item": { "basDt": "20261016", "srtnCd": "TEST03", "itmsNm": "테스트 ETF 셋", "clpr": "5,120" } }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+# 로컬 PostgreSQL(운영과 같은 DB). 아직 필수는 아니다 — Docker 없이 쓰려면 local 프로필(H2)을 쓴다.
+# docker compose up -d 후: ./gradlew :app:bootRun  (기본 프로필 api, application.yml의 기본 접속 정보와 같다)
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: uplog
+      POSTGRES_USER: uplog
+      POSTGRES_PASSWORD: uplog
+      TZ: Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - uplog-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uplog -d uplog"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  uplog-pg:

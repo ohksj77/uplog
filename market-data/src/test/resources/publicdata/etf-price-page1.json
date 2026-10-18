@@ -1,0 +1,25 @@
+{
+  "_comment": "테스트용으로 손으로 만든 픽스처. 공개 문서의 필드명만 따랐고 실제 응답과 대조하지 않았다(미검증). 종목·가격은 가짜다.",
+  "response": {
+    "header": { "resultCode": "00", "resultMsg": "NORMAL SERVICE." },
+    "body": {
+      "numOfRows": 2,
+      "pageNo": 1,
+      "totalCount": 3,
+      "items": {
+        "item": [
+          {
+            "basDt": "20261016", "srtnCd": "TEST01", "isinCd": "KR7TEST00001", "itmsNm": "테스트 ETF 하나",
+            "clpr": "41250", "vs": "-150", "fltRt": "-.36", "nav": "41290.11", "mkp": "41400", "hipr": "41500",
+            "lopr": "41100", "trqu": "1234567", "trPrc": "50923456789", "mrktTotAmt": "7000000000000",
+            "stLstgCnt": "170000000", "bssIdxIdxNm": "테스트 지수", "bssIdxClpr": "412.34", "nPptTotAmt": "7010000000000"
+          },
+          {
+            "basDt": "20261016", "srtnCd": "TEST02", "isinCd": "KR7TEST00002", "itmsNm": "테스트 ETF 둘",
+            "clpr": 10005, "vs": 5, "fltRt": 0.05
+          }
+        ]
+      }
+    }
+  }
+}
