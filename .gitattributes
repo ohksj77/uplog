@@ -1,0 +1,7 @@
+# 전역 core.autocrlf 설정과 관계없이 줄바꿈을 고정한다. gradlew는 CRLF면 실행되지 않는다.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.jar binary
+*.png binary
+*.ico binary
