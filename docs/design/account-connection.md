@@ -113,5 +113,5 @@ DELETE /api/connections/toss?deleteData=false → 204    // 키는 항상 즉시
 - **일일**(07:00 KST, 직전 거래일 기준): 보유 종목 + 매수 가능 금액(KRW·USD) + 새 체결(커서 이후) + 환율 → 스냅샷과 `trade` 기록 → 현금흐름 추정(`INFERRED`) → `account_day` 갱신.
 - **실패**: 지수 백오프로 3회 재시도, 그래도 실패하면 `collection_gap`에 기록하고 다음 날 작업은 계속한다. 401 `token-revoked`는 한 번만 다시 발급받고, 반복되면 `lastError`에 "다른 곳에서 같은 키를 사용 중"을 남긴다. 403 `ip-not-allowed`는 즉시 실패하고 사용자에게 IP 등록을 안내한다.
 - **레이트리밋**: 그룹별 토큰 버킷(문서 수치)을 쓰고, 응답 헤더 `X-RateLimit-Remaining`이 낮으면 속도를 늦춘다. 워커가 여러 대가 되면 Redis로 옮긴다.
-- **안전장치**: 토스 클라이언트는 `POST /oauth2/token`과 `GET /api/v1/{accounts,holdings,orders,buying-power,exchange-rate,candles,market-calendar}`만 보낼 수 있다. 그 밖의 요청은 보내기 전에 예외로 막는다(키가 주문 권한을 가지므로).
+- **안전장치**: 토스 클라이언트는 `POST /oauth2/token`과 `GET /api/v1/{accounts,holdings,orders,buying-power,exchange-rate,candles,market-calendar,stocks,stocks/all}`만 보낼 수 있다. 그 밖의 요청은 보내기 전에 예외로 막는다(키가 주문 권한을 가지므로).
 - **가짜 토스 서버**(`fake-toss` 프로필, 명시적으로 켤 때만): 같은 앱의 `/__fake-toss/**`. 켜져 있으면 연결한 계좌를 샘플 계좌("가짜 토스 계좌(개발용)")로 만들고, setup 응답의 `simulated: true`로 연결 화면에 가짜 서버라고 알린다. 명세와 같은 경로·형식(숫자는 문자열). 결정적 데이터, `client_secret`이 `invalid`면 401, `client_id`가 `ip-blocked`로 시작하면 403 `ip-not-allowed`, 레이트리밋 헤더 포함. 개발용 로그인 → 연결 → 역산 → 로그 표시까지 로컬에서 끝까지 확인할 수 있어야 한다.

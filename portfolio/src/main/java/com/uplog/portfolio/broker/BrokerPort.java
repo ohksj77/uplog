@@ -83,6 +83,43 @@ public interface BrokerPort {
     /** 기준일 앞뒤 영업일. todayOpen은 기준일이 영업일인지. */
     record MarketDays(LocalDate previous, LocalDate today, boolean todayOpen, LocalDate next) {}
 
+    /** 종목 목록을 받는 상장 시장(거래소). 토스 {@code GET /api/v1/stocks/all?market=}의 값. */
+    enum ListingMarket {
+        KOSPI(Market.KR),
+        KOSDAQ(Market.KR),
+        NYSE(Market.US),
+        NASDAQ(Market.US),
+        AMEX(Market.US);
+
+        private final Market country;
+
+        ListingMarket(Market country) {
+            this.country = country;
+        }
+
+        public Market country() {
+            return country;
+        }
+    }
+
+    /**
+     * 상장 시장의 종목 하나(유니버스).
+     *
+     * @param securityType 증권사 원문 유형(STOCK, ETF, FOREIGN_ETF, ETN, REIT …). 분류는 쓰는 쪽이 한다.
+     */
+    record Listing(String symbol, String name, String securityType, boolean commonShare) {}
+
+    /**
+     * 종목 상세.
+     *
+     * @param listingMarket 증권사 원문 시장(KOSPI, NASDAQ, KR_ETC …)
+     * @param status ACTIVE | SCHEDULED | DELISTED
+     * @param listDate 상장일, 모르면 null
+     */
+    record StockInfo(
+            String symbol, String name, String listingMarket, Market market, CurrencyCode currency, String securityType,
+            String status, LocalDate listDate) {}
+
     /** 종합매매 계좌 목록. 없으면 빈 목록. */
     List<BrokerAccount> accounts(BrokerCredentials credentials);
 
@@ -110,4 +147,10 @@ public interface BrokerPort {
     Optional<CandlePage> dailyCandles(BrokerCredentials credentials, String symbol, OffsetDateTime before);
 
     MarketDays marketDays(BrokerCredentials credentials, Market market, LocalDate date);
+
+    /** 그 시장에 상장된(ACTIVE) 종목 전체. 하루 한 번 받아 저장해 두고 쓴다(토스 STOCK_ALL 그룹은 초당 1회). */
+    List<Listing> listings(BrokerCredentials credentials, ListingMarket market);
+
+    /** 종목 상세(최대 200개씩 나눠 묻는다). 증권사가 모르는 코드는 결과에서 빠진다. */
+    List<StockInfo> stocks(BrokerCredentials credentials, List<String> symbols);
 }

@@ -42,11 +42,15 @@
 | 환율 | `GET /api/v1/exchange-rate?dateTime&baseCurrency=USD&quoteCurrency=KRW` | MARKET_INFO (초당 3) |
 | 일봉 | `GET /api/v1/candles?symbol&interval=1d&count=200&before&adjusted` | MARKET_DATA_CHART (초당 20) |
 | 장 운영일 | `GET /api/v1/market-calendar/{KR|US}?date` | MARKET_INFO |
+| 시장별 전체 종목(기능 A 검색) | `GET /api/v1/stocks/all?market=KOSPI|KOSDAQ|NYSE|NASDAQ|AMEX&status=ACTIVE` — `[{symbol, name, securityType, isCommonShare, isinCode}]`, 페이지 없이 한 번에(NASDAQ 약 2,800건). 하루 1회 캐시 | STOCK_ALL (초당 1) |
+| 종목 상세 | `GET /api/v1/stocks?symbols=a,b`(최대 200) — market, currency, status, listDate 등 | STOCK (초당 5) |
 
 - 응답 헤더 `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, 429일 때 `Retry-After`. 한도는 사전 공지 없이 바뀔 수 있다.
 - 체결 내역 주의: Open API가 지원하는 호가 유형(지정가·시장가·장마감지정가)으로 접수된 주문만 조회된다. 시간외 종가 주문 등은 빠진다.
 - 체결의 `execution`: `filledQuantity`, `averageFilledPrice`, `filledAmount`, `commission`, `tax`, `filledAt`, `settlementDate`. 체결 환율은 없어서 `filledAt` 시점 참고 환율(`exchange-rate?dateTime`)로 환산한다(실제 거래 환율과 다를 수 있음).
 - 숫자는 모두 문자열이다.
+- `securityType`: STOCK, FOREIGN_STOCK, DEPOSITARY_RECEIPT, INFRASTRUCTURE_FUND, REIT, ETF, FOREIGN_ETF, ETN, STOCK_WARRANTS. 명세는 미국 ETF가 `ETF`인지 `FOREIGN_ETF`인지 적어 두지 않아서 둘 다 ETF로 본다(실제 키로 확인 필요).
+- 일봉 `nextBefore`는 그 페이지 가장 오래된 봉의 시각이고 `before`는 포함(inclusive)이라 다음 페이지 첫 봉이 겹친다.
 
 ## 현금흐름 추정 (입출금·배당 API가 없어서)
 

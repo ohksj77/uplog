@@ -11,7 +11,11 @@ public enum RateLimitGroup {
     /** 09:00–09:10(KST)에는 초당 3 */
     ORDER_INFO(6),
     MARKET_INFO(3),
-    MARKET_DATA_CHART(20);
+    MARKET_DATA_CHART(20),
+    /** 종목 상세 {@code GET /api/v1/stocks} */
+    STOCK(5),
+    /** 시장별 전체 종목 {@code GET /api/v1/stocks/all} */
+    STOCK_ALL(1);
 
     private static final LocalTime OPENING_RUSH_START = LocalTime.of(9, 0);
     private static final LocalTime OPENING_RUSH_END = LocalTime.of(9, 10);
@@ -39,6 +43,8 @@ public enum RateLimitGroup {
             case "/api/v1/orders" -> ORDER_HISTORY;
             case "/api/v1/buying-power" -> ORDER_INFO;
             case "/api/v1/candles" -> MARKET_DATA_CHART;
+            case "/api/v1/stocks" -> STOCK;
+            case "/api/v1/stocks/all" -> STOCK_ALL;
             default -> {
                 if (path.equals("/api/v1/exchange-rate") || path.startsWith("/api/v1/market-calendar/")) {
                     yield MARKET_INFO;

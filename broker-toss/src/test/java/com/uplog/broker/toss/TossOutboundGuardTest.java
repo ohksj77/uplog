@@ -14,7 +14,8 @@ class TossOutboundGuardTest {
     @Test
     void 토큰_발급과_조회용_GET만_허용한다() {
         for (String path : new String[] {"/api/v1/accounts", "/api/v1/holdings", "/api/v1/orders", "/api/v1/buying-power",
-            "/api/v1/exchange-rate", "/api/v1/candles", "/api/v1/market-calendar/KR", "/api/v1/market-calendar/US"}) {
+            "/api/v1/exchange-rate", "/api/v1/candles", "/api/v1/market-calendar/KR", "/api/v1/market-calendar/US",
+            "/api/v1/stocks", "/api/v1/stocks/all"}) {
             assertThatCode(() -> TossOutboundGuard.check(HttpMethod.GET, path)).doesNotThrowAnyException();
         }
         assertThatCode(() -> TossOutboundGuard.check(HttpMethod.POST, "/oauth2/token")).doesNotThrowAnyException();
@@ -29,7 +30,17 @@ class TossOutboundGuardTest {
             {HttpMethod.GET, "/api/v1/orders/o1"},
             {HttpMethod.POST, "/api/v1/conditional-orders"},
             {HttpMethod.DELETE, "/api/v1/conditional-orders/c1"},
-            {HttpMethod.GET, "/api/v1/stocks"},
+            {HttpMethod.POST, "/api/v1/stocks"},
+            {HttpMethod.POST, "/api/v1/stocks/all"},
+            {HttpMethod.DELETE, "/api/v1/stocks/all"},
+            {HttpMethod.GET, "/api/v1/stocks/005930"},
+            {HttpMethod.GET, "/api/v1/stocks/005930/warnings"},
+            {HttpMethod.GET, "/api/v1/stocks/all/../../orders"},
+            {HttpMethod.GET, "/api/v1/stocks//all"},
+            {HttpMethod.GET, "/api/v1/stocks/all/"},
+            {HttpMethod.GET, "/api/v1/stocks;x=1"},
+            {HttpMethod.GET, "/api/v1/stocks%2Fall"},
+            {HttpMethod.GET, "/api/v1/prices"},
             {HttpMethod.GET, "/oauth2/token"},
             {HttpMethod.PUT, "/api/v1/accounts"},
             {HttpMethod.GET, "/api/v1/candles/../orders"},
@@ -54,6 +65,10 @@ class TossOutboundGuardTest {
         assertThatThrownBy(() -> http.get().uri("https://evil.test/base/api/v1/accounts").retrieve().toBodilessEntity())
                 .isInstanceOf(BlockedRequestException.class);
         assertThatThrownBy(() -> http.get().uri("https://toss.test/other/api/v1/accounts").retrieve().toBodilessEntity())
+                .isInstanceOf(BlockedRequestException.class);
+        assertThatThrownBy(() -> http.post().uri("https://toss.test/base/api/v1/stocks/all").body("{}").retrieve().toBodilessEntity())
+                .isInstanceOf(BlockedRequestException.class);
+        assertThatThrownBy(() -> http.get().uri("https://toss.test/base/api/v1/stocks/AAPL/orders").retrieve().toBodilessEntity())
                 .isInstanceOf(BlockedRequestException.class);
         server.verify();
     }

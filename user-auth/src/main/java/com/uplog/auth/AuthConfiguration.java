@@ -80,7 +80,8 @@ public class AuthConfiguration {
                 .addFilterBefore(new OriginCheckFilter(properties.allowedOrigins(), local ? List.of(FAKE_TOSS) : List.of()), CsrfFilter.class)
                 .addFilterBefore(new SessionAuthenticationFilter(cookies, users), AnonymousAuthenticationFilter.class)
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers("/api/auth/**", "/api/me", "/api/portfolio/**", "/api/simulations/**", "/api/etfs/**")
+                        .requestMatchers("/api/auth/**", "/api/me", "/api/portfolio/**", "/api/simulations/**", "/api/etfs/**",
+                                "/api/instruments/**")
                         .permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers(FAKE_TOSS + "**").access((auth, ctx) -> new AuthorizationDecision(local))

@@ -45,6 +45,14 @@ class SimulationQueryTest {
         assertInvalid(() -> SimulationQuery.parse("A,B,C,D", "6M", "DAILY", null, null, "TOTAL", "1000"), "최대 3개");
         assertInvalid(() -> SimulationQuery.parse("A,,B", "6M", "DAILY", null, null, "TOTAL", "1000"), "종목코드");
         assertInvalid(() -> SimulationQuery.parse("A;DROP", "6M", "DAILY", null, null, "TOTAL", "1000"), "종목코드");
+        assertInvalid(() -> SimulationQuery.parse("A/B", "6M", "DAILY", null, null, "TOTAL", "1000"), "종목코드");
+        assertInvalid(() -> SimulationQuery.parse("ABCDEFGHIJKLM", "6M", "DAILY", null, null, "TOTAL", "1000"), "종목코드");
+    }
+
+    @Test
+    void 종목코드는_토스_심볼_문자를_받고_대문자로_맞춘다() {
+        assertThat(SimulationQuery.parse("069500, brk.b ,BF-B", "6M", "DAILY", null, null, "TOTAL", "1000").etfs())
+                .containsExactly("069500", "BRK.B", "BF-B");
     }
 
     @Test

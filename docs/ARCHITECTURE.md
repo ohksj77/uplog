@@ -32,9 +32,9 @@
 | `core` | `Money`, `CurrencyCode`, 거래일 캘린더(KR/US) | MVP |
 | `calc-engine` | 일별 손익, TWR, 이동평균 실현손익, 벤치마크 리플레이, 시뮬레이션. 스프링·DB 의존 없는 순수 자바 | MVP |
 | `user-auth` | 사용자·외부 계정(`app_user`, `user_identity`), 세션(서명한 JWT, HttpOnly 쿠키 `uplog_session`, 14일), 카카오 OAuth2 로그인(env 설정 시)·`local` 개발용 로그인, Spring Security(상태 없음, `Origin` 검사로 CSRF 방어, 401 JSON), `CurrentUser` | MVP |
-| `broker-toss` | `BrokerPort`·`BrokerVerifier`의 토스 구현(`TossBrokerAdapter`): clientId별 토큰 캐시(401 `token-revoked`면 한 번만 재발급), 그룹별 토큰 버킷 레이트리밋(`X-RateLimit-Remaining`이 낮으면 늦춤, 429는 `Retry-After`), 5xx 백오프, 나가는 요청 허용 목록(토큰 발급 + 조회 GET 7종 외에는 보내기 전에 차단). `local` 전용 가짜 토스 서버 `/__fake-toss/**` | MVP |
+| `broker-toss` | `BrokerPort`·`BrokerVerifier`의 토스 구현(`TossBrokerAdapter`): clientId별 토큰 캐시(401 `token-revoked`면 한 번만 재발급), 그룹별 토큰 버킷 레이트리밋(`X-RateLimit-Remaining`이 낮으면 늦춤, 429는 `Retry-After`), 5xx 백오프, 나가는 요청 허용 목록(토큰 발급 + 조회 GET 9종 외에는 보내기 전에 차단). `local` 전용 가짜 토스 서버 `/__fake-toss/**` | MVP |
 | `credential` | 증권사 키 봉투 암호화(`broker_credential`: 비밀마다 AES-256-GCM 데이터키, 데이터키는 `MasterKeyProvider`로 감쌈 — 지금은 env `UPLOG_MASTER_KEY`, KMS는 자리만), `CredentialReader`·`CredentialStore` 구현, 해제 시 즉시 파기 | MVP |
-| `market-data` | 기능 A·벤치마크용 시세. 토스 시세와 물리적으로 분리(재배포 리스크) | MVP |
+| `market-data` | 공용 시세(instrument·daily_price·fx_rate). 기능 A 실제 종목: 시장별 종목 목록 동기화(하루 1회), 요청 구간 일봉 백필(확인 구간 `price_coverage` 밖만), 매수일 환율 백필. 시세 소스는 `MarketFeed` 포트(요청자 키로 만든 것, 구현은 ingest의 `BrokerMarketFeed`) | MVP |
 | `ingest` | 작업 큐(`ingest_job`, `FOR UPDATE SKIP LOCKED`, 지수 백오프 3회 → 실패 시 `collection_gap`), 역산(체결 전부·일봉·환율, 역산 구간 최소 입금 추정), 일일 수집(07:00 KST: 새 체결·보유·현금 스냅샷, 현금흐름 추정 `INFERRED`, 보유 대사), `IngestScheduler`·`AccountDataPurger` 구현 | MVP |
 | `simulation` | 기능 A API, 파라미터 해시 캐시 | MVP |
 | `portfolio` (계획상 `portfolio-view`) | 기능 B API(로그·보유·일자 상세·인사이트), 원시 테이블, `BrokerPort`, 로컬 데모 계좌, 요청자 → 계좌 해석(비로그인 = 데모), 연결 API(`/api/me`, `/api/connections/toss/**`)와 모듈 사이 계약(`connect` 패키지). 계산은 `calc-engine`의 `com.uplog.calc.portfolio` | MVP |
@@ -93,8 +93,9 @@ Flyway 버전은 모듈별 구간을 쓴다: `market-data` V1–V99, `portfolio`
 
 ## 6. 기능 A (시뮬레이션)
 
-- 비로그인 `GET /api/simulations?etfs=…&period=1Y&frequency=WEEKLY&dayOfWeek=MONDAY&amountType=PER_PURCHASE&amount=…` (계약: [docs/api/simulation.md](api/simulation.md))
-- 3년 × 약 250거래일 × 최대 3개 ETF라서 요청 시 계산한다. 정규화한 파라미터 해시로 캐시한다.
+- `GET /api/simulations?etfs=…&period=1Y&frequency=WEEKLY&dayOfWeek=MONDAY&amountType=PER_PURCHASE&amount=…` (계약: [docs/api/simulation.md](api/simulation.md))
+- 실제 종목(국내·미국 ETF·주식)만. 시세는 **요청자 자신이 연결한 토스 키로만** 받고, 비로그인·미연결은 403 `SIMULATION_REQUIRES_CONNECTION`. 미국 종목은 그날 USD/KRW로 원화 환산.
+- 3년 × 약 250거래일 × 최대 3개 종목이라서 요청 시 계산한다. 정규화한 파라미터 해시로 캐시한다.
 - 공유 링크에는 결과가 아니라 파라미터를 담고, 열 때 다시 계산한다.
 - 랭킹·추천 엔드포인트는 두지 않는다(규제 리스크).
 
@@ -115,5 +116,5 @@ POST   /api/shares  /  GET /s/{id}       공유 카드
 ## 8. 미정 사항
 
 1. **프론트엔드**: MVP는 Next.js 웹/PWA, 홈 위젯이 들어가는 2단계에 React Native 또는 Flutter.
-2. **기능 A 시세 소스**: 국내 ETF는 공공데이터포털(금융위원회) 시세, 미국 ETF·지수는 별도 벤더 필요(이용 조건 확인).
+2. **기능 A 시세 소스**: 지금은 요청자 자신의 토스 키(연결 필수). 비로그인 체험이 필요하면 공공데이터포털(국내 ETF) 등 재배포 가능한 소스를 따로 붙인다.
 3. 기획서 "확인 필요" 항목 중 **조회 전용 권한**과 **체결 내역 조회 가능 기간**은 `credential`과 backfill 설계를 직접 바꾸므로 먼저 확인한다.

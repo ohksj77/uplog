@@ -26,6 +26,8 @@ import tools.jackson.databind.JsonNode;
 public class TossBrokerAdapter implements BrokerPort, BrokerVerifier {
 
     static final String BROKERAGE = "BROKERAGE";
+    /** {@code GET /api/v1/stocks}의 symbols 최대 개수 */
+    static final int MAX_STOCK_SYMBOLS = 200;
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
     private final TossClient client;
@@ -180,6 +182,60 @@ public class TossBrokerAdapter implements BrokerPort, BrokerVerifier {
                 LocalDate.parse(today.path("date").asString(date.toString())),
                 open,
                 LocalDate.parse(result.path("nextBusinessDay").path("date").asString()));
+    }
+
+    @Override
+    public List<Listing> listings(BrokerCredentials credentials, ListingMarket market) {
+        Map<String, Object> query = new LinkedHashMap<>();
+        query.put("market", market.name());
+        query.put("status", "ACTIVE");
+        JsonNode result = client.get(credentials, null, "/api/v1/stocks/all", query, false);
+        if (!result.isArray()) {
+            throw new BrokerException(Reason.UNAVAILABLE, "토스 종목 목록 응답 형식이 예상과 다릅니다(" + market + ")");
+        }
+        List<Listing> listings = new ArrayList<>();
+        for (JsonNode s : result) {
+            String symbol = s.path("symbol").asString("").strip();
+            if (symbol.isEmpty()) {
+                continue;
+            }
+            String name = s.path("name").asString("").strip();
+            listings.add(new Listing(symbol, name.isEmpty() ? symbol : name, s.path("securityType").asString(""),
+                    s.path("isCommonShare").asBoolean(true)));
+        }
+        return List.copyOf(listings);
+    }
+
+    @Override
+    public List<StockInfo> stocks(BrokerCredentials credentials, List<String> symbols) {
+        List<StockInfo> stocks = new ArrayList<>();
+        for (int i = 0; i < symbols.size(); i += MAX_STOCK_SYMBOLS) {
+            List<String> chunk = symbols.subList(i, Math.min(symbols.size(), i + MAX_STOCK_SYMBOLS));
+            JsonNode result = client.get(credentials, null, "/api/v1/stocks", Map.of("symbols", String.join(",", chunk)), true);
+            if (result == null) {
+                continue; // 모르는 종목뿐이면 404
+            }
+            for (JsonNode s : result) {
+                String symbol = s.path("symbol").asString("").strip();
+                if (symbol.isEmpty()) {
+                    continue;
+                }
+                String currency = s.path("currency").asString("");
+                String listingMarket = s.path("market").asString("");
+                String listDate = s.path("listDate").asString(null);
+                stocks.add(new StockInfo(
+                        symbol,
+                        s.path("name").asString(symbol),
+                        listingMarket,
+                        market(listingMarket.equals("NYSE") || listingMarket.equals("NASDAQ") || listingMarket.equals("AMEX")
+                                || listingMarket.equals("US_ETC") ? "US" : "", currency),
+                        currency(currency),
+                        s.path("securityType").asString(""),
+                        s.path("status").asString(""),
+                        listDate == null || listDate.isBlank() ? null : LocalDate.parse(listDate)));
+            }
+        }
+        return List.copyOf(stocks);
     }
 
     // ---- 변환

@@ -260,4 +260,38 @@ class TossClientTest {
         assertThat(adapter.dailyCandles(KEY, "GONE", null)).isEmpty();
         server.verify();
     }
+
+    @Test
+    void 종목_목록은_ACTIVE만_묻고_상세는_200개씩_나눠_묻는다() {
+        expectToken("a");
+        server.expect(requestTo(BASE + "/api/v1/stocks/all?market=NASDAQ&status=ACTIVE"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {"result":[{"symbol":"AAPL","name":"애플","securityType":"STOCK","isCommonShare":true,"isinCode":"US0378331005"},
+                                   {"symbol":"QQQ","name":"인베스코 QQQ","securityType":"FOREIGN_ETF","isCommonShare":true,"isinCode":"x"},
+                                   {"symbol":"","name":"빈 코드","securityType":"STOCK","isCommonShare":true,"isinCode":"y"}]}""",
+                        MediaType.APPLICATION_JSON));
+        java.util.List<String> symbols = new java.util.ArrayList<>();
+        for (int i = 0; i < 201; i++) {
+            symbols.add("S" + i);
+        }
+        server.expect(requestTo(startsWith(BASE + "/api/v1/stocks?symbols=S0%2CS1%2C")))
+                .andRespond(withSuccess("""
+                        {"result":[{"symbol":"S0","name":"영","englishName":"Zero","isinCode":"i","market":"NYSE",
+                          "securityType":"STOCK","isCommonShare":true,"status":"ACTIVE","currency":"USD","listDate":"1999-01-04",
+                          "delistDate":null,"sharesOutstanding":"1","leverageFactor":null,"koreanMarketDetail":null}]}""",
+                        MediaType.APPLICATION_JSON));
+        server.expect(requestTo(BASE + "/api/v1/stocks?symbols=S200"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON).body(error("stock-not-found")));
+        var listings = adapter.listings(KEY, com.uplog.portfolio.broker.BrokerPort.ListingMarket.NASDAQ);
+        assertThat(listings).extracting(l -> l.symbol() + ":" + l.securityType()).containsExactly("AAPL:STOCK", "QQQ:FOREIGN_ETF");
+        var stocks = adapter.stocks(KEY, symbols);
+        assertThat(stocks).singleElement().satisfies(s -> {
+            assertThat(s.market()).isEqualTo(com.uplog.portfolio.broker.BrokerPort.Market.US);
+            assertThat(s.currency()).isEqualTo(com.uplog.core.CurrencyCode.USD);
+            assertThat(s.listingMarket()).isEqualTo("NYSE");
+            assertThat(s.listDate()).isEqualTo(LocalDate.of(1999, 1, 4));
+        });
+        server.verify();
+    }
 }

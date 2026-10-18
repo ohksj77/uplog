@@ -93,11 +93,12 @@ export function SimulationForm({ initial = DEFAULT_PARAMS }: SimulationFormProps
     <form onSubmit={onSubmit} noValidate className="space-y-7">
       <div>
         <label htmlFor={etfInputId} className="mb-2 block text-sm font-medium">
-          ETF <span className="font-normal text-muted">(최대 {MAX_ETFS}개)</span>
+          종목 <span className="font-normal text-muted">(최대 {MAX_ETFS}개)</span>
         </label>
         <EtfPicker value={etfs} onChange={setEtfs} inputId={etfInputId} describedBy={etfHintId} />
         <p id={etfHintId} className="mt-2 text-xs text-muted">
-          여러 개를 고르면 같은 조건으로 나란히 비교해요.
+          국내·미국 ETF와 주식을 고를 수 있어요. 여러 개를 고르면 같은 조건으로 나란히 비교해요. 미국 종목은 원화로
+          환산해 보여드려요.
         </p>
       </div>
 
@@ -177,7 +178,7 @@ export function SimulationForm({ initial = DEFAULT_PARAMS }: SimulationFormProps
         >
           {pending ? "계산하는 중…" : "결과 보기"}
         </button>
-        {etfMissing && <p className="text-center text-xs text-muted">ETF를 하나 이상 골라 주세요.</p>}
+        {etfMissing && <p className="text-center text-xs text-muted">종목을 하나 이상 골라 주세요.</p>}
       </div>
     </form>
   );

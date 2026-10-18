@@ -30,7 +30,7 @@ export function EtfTabs({ etfs, selected, onSelect, panelId, tabId }: EtfTabsPro
   };
 
   return (
-    <div role="tablist" aria-label="ETF 선택" className="flex gap-1 rounded-xl bg-surface p-1" onKeyDown={onKeyDown}>
+    <div role="tablist" aria-label="종목 선택" className="flex gap-1 rounded-xl bg-surface p-1" onKeyDown={onKeyDown}>
       {etfs.map((etf, i) => (
         <button
           key={etf.code}

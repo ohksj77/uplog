@@ -3,7 +3,7 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import type { Etf, EtfListItem } from "@/lib/api/types";
 import { MAX_ETFS } from "@/lib/simulation-params";
-import { SampleBadge } from "@/components/etf-picker/SampleBadge";
+import { InstrumentBadges } from "@/components/etf-picker/InstrumentBadges";
 import { useEtfSearch } from "@/components/etf-picker/useEtfSearch";
 
 export type EtfPickerProps = {
@@ -17,9 +17,9 @@ export type EtfPickerProps = {
   invalid?: boolean;
 };
 
-const toEtf = ({ code, name, currency, sample }: EtfListItem): Etf => ({ code, name, currency, sample });
+const toEtf = ({ code, name, market, type, currency }: EtfListItem): Etf => ({ code, name, market, type, currency });
 
-/** ARIA combobox(목록형 자동완성) + 고른 종목 칩. */
+/** ARIA combobox(목록형 자동완성) + 고른 종목 칩. 국내·미국 ETF와 주식을 고른다. */
 export function EtfPicker({ value, onChange, max = MAX_ETFS, inputId, describedBy, invalid }: EtfPickerProps) {
   const autoId = useId();
   const id = inputId ?? `${autoId}-input`;
@@ -101,20 +101,20 @@ export function EtfPicker({ value, onChange, max = MAX_ETFS, inputId, describedB
       : search.status === "error"
         ? search.error
         : search.status === "done" && items.length === 0
-          ? "찾는 ETF가 없어요. 이름이나 종목코드로 다시 검색해 보세요."
+          ? "찾는 종목이 없어요. 이름이나 종목코드(티커)로 다시 검색해 보세요."
           : "";
 
   return (
     <div className="space-y-2">
       {value.length > 0 && (
-        <ul className="flex flex-wrap gap-2" aria-label="고른 ETF">
+        <ul className="flex flex-wrap gap-2" aria-label="고른 종목">
           {value.map((etf) => (
             <li
               key={etf.code}
               className="flex max-w-full items-center gap-1.5 rounded-full bg-surface py-1 pr-1 pl-3 text-sm ring-1 ring-border ring-inset"
             >
               <span className="truncate">{etf.name}</span>
-              {etf.sample && <SampleBadge />}
+              <span className="shrink-0 text-xs text-muted">{etf.market === "US" ? "미국" : "국내"}</span>
               <button
                 type="button"
                 onClick={() => remove(etf.code)}
@@ -154,7 +154,7 @@ export function EtfPicker({ value, onChange, max = MAX_ETFS, inputId, describedB
           spellCheck={false}
           disabled={full}
           value={query}
-          placeholder={full ? `최대 ${max}개까지 고를 수 있어요` : "ETF 이름 또는 종목코드"}
+          placeholder={full ? `최대 ${max}개까지 고를 수 있어요` : "종목 이름, 종목코드 또는 티커"}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
@@ -169,7 +169,7 @@ export function EtfPicker({ value, onChange, max = MAX_ETFS, inputId, describedB
         <ul
           id={listId}
           role="listbox"
-          aria-label="ETF 검색 결과"
+          aria-label="종목 검색 결과"
           hidden={!expanded || items.length === 0}
           className="absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-xl border border-border bg-background p-1 shadow-lg"
         >
@@ -193,7 +193,7 @@ export function EtfPicker({ value, onChange, max = MAX_ETFS, inputId, describedB
                   <span className="block truncate font-medium">{item.name}</span>
                   <span className="block text-xs text-muted">{item.code}</span>
                 </span>
-                {item.sample && <SampleBadge />}
+                <InstrumentBadges etf={item} />
                 {picked && <span className="shrink-0 text-xs text-muted">선택됨</span>}
               </li>
             );

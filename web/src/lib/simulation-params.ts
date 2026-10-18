@@ -8,6 +8,8 @@ const WEEKDAYS: Weekday[] = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRID
 const AMOUNT_TYPES: AmountType[] = ["TOTAL", "PER_PURCHASE"];
 
 export const MAX_ETFS = 3;
+/** 토스 종목 심볼: 영문·숫자·'.'·'-' 1–12자(국내 6자리 코드, 미국 티커) */
+const SYMBOL = /^[A-Za-z0-9.-]{1,12}$/;
 export const MIN_AMOUNT = 1_000;
 export const MAX_AMOUNT = 1_000_000_000;
 
@@ -37,8 +39,9 @@ export function parseSearchParams(
   q: URLSearchParams,
 ): { ok: true; params: SimulationParams } | { ok: false; error: string } {
   const etfs = (q.get("etfs") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (etfs.length === 0) return { ok: false, error: "ETF를 하나 이상 골라 주세요." };
-  if (etfs.length > MAX_ETFS) return { ok: false, error: `ETF는 최대 ${MAX_ETFS}개까지 비교할 수 있어요.` };
+  if (etfs.length === 0) return { ok: false, error: "종목을 하나 이상 골라 주세요." };
+  if (etfs.length > MAX_ETFS) return { ok: false, error: `종목은 최대 ${MAX_ETFS}개까지 비교할 수 있어요.` };
+  if (etfs.some((c) => !SYMBOL.test(c))) return { ok: false, error: "종목코드가 올바르지 않아요." };
 
   const period = q.get("period") as Period;
   if (!PERIODS.includes(period)) return { ok: false, error: "기간이 올바르지 않아요." };

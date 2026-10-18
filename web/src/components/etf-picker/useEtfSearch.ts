@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ApiError, searchEtfs } from "@/lib/api/client";
+import { ApiError, searchInstruments } from "@/lib/api/client";
 import type { EtfListItem } from "@/lib/api/types";
 
 const DEBOUNCE_MS = 200;
@@ -22,11 +22,11 @@ export function useEtfSearch(query: string, enabled: boolean): EtfSearchState {
     if (!enabled) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      searchEtfs(q, controller.signal)
+      searchInstruments(q, controller.signal)
         .then((items) => setResult({ query: q, items, error: null }))
         .catch((e: unknown) => {
           if (controller.signal.aborted) return;
-          const message = e instanceof ApiError ? e.message : "ETF 목록을 불러오지 못했어요.";
+          const message = e instanceof ApiError ? e.message : "종목 목록을 불러오지 못했어요.";
           setResult({ query: q, items: null, error: message });
         });
     }, DEBOUNCE_MS);
