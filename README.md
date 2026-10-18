@@ -5,14 +5,15 @@ API 계약은 기능 A(종목 시뮬레이션) [docs/api/simulation.md](docs/api
 
 ## 설치·실행 (사용자)
 
-1. `uplog-0.1.0-arm64.dmg`를 열고 **업로그**를 응용 프로그램 폴더로 끌어 놓는다(Apple Silicon 맥 전용, macOS 12 이상).
+1. `UpLog-0.1.0-arm64.dmg`를 열고 **UpLog**를 응용 프로그램 폴더로 끌어 놓는다(Apple Silicon 맥 전용, macOS 12 이상).
 2. 처음 열 때: 아직 Apple 개발자 서명·공증이 없어서 macOS가 "확인되지 않은 개발자" 또는 "손상됨"이라며 막는다.
-   - Finder에서 업로그를 **오른쪽 클릭 → 열기 → 열기**, 또는
+   - Finder에서 UpLog를 **오른쪽 클릭 → 열기 → 열기**, 또는
    - 한 번 열어 본 뒤 **시스템 설정 → 개인정보 보호 및 보안 → "그래도 열기"**.
    - 그래도 "손상되었기 때문에 열 수 없습니다"가 뜨면(다운로드 격리 표시) 터미널에서
-     `xattr -dr com.apple.quarantine /Applications/uplog.app` 후 다시 연다.
-3. 창을 닫아도 앱은 **메뉴바 아이콘**으로 계속 돌며 매일 07:00 수집을 한다. 메뉴바 아이콘: 업로그 열기, 지금 수집,
-   로그 폴더 열기, 로그인 시 자동 실행, 업로그 종료. 완전히 끄려면 메뉴바의 "업로그 종료" 또는 ⌘Q.
+     `xattr -dr com.apple.quarantine /Applications/UpLog.app` 후 다시 연다.
+3. 창을 닫아도 앱은 **메뉴바 아이콘**으로 계속 돌며 매일 07:00 수집을 한다. 메뉴바 아이콘: UpLog 열기, 지금 수집,
+   로그 폴더 열기, 로그인 시 자동 실행, UpLog 종료. 완전히 끄려면 메뉴바의 "UpLog 종료" 또는 ⌘Q.
+   맥 위젯 "UpLog 로그"가 앱 안에 들어 있다(위젯 갤러리에서 추가). `uplog://` 링크는 앱 창을 연다.
 4. 데이터는 `~/Library/Application Support/uplog`(DB `uplog.mv.db`, 로그 `logs/engine.log`·`logs/desktop.log`),
    토스 키의 마스터키는 macOS 키체인(`uplog` / `master-key`)에 있다. 앱을 지워도 이 폴더와 키체인 항목은 남는다.
 5. **자동 업데이트는 없다.** 새 버전은 새 dmg로 덮어 설치한다(데이터 폴더는 그대로 쓴다).
@@ -68,9 +69,10 @@ curl -H 'Origin: http://localhost:3000' -H 'Content-Type: application/json' \
 ```bash
 scripts/build-mac-app.sh
 # 1) web 정적 export(web/out) 2) ./gradlew :app:bootJar 3) jdeps+jlink 런타임(desktop/build/runtime)
-# 4) 그 런타임으로 엔진을 띄워 /__health 200 확인 5) electron-builder → .app·.dmg (arm64, ad-hoc 서명)
-#   → desktop/dist-app/mac-arm64/uplog.app (약 330MB), desktop/dist-app/uplog-0.1.0-arm64.dmg (약 175MB)
-# 이미 만든 단계는 SKIP_WEB=1 SKIP_ENGINE=1 SKIP_RUNTIME=1 로 건너뛴다.
+# 4) widget/build.sh(위젯 appex) 5) 그 런타임으로 엔진을 띄워 /__health 200 확인
+# 6) electron-builder → .app·.dmg (arm64, ad-hoc 서명). afterSign 훅이 위젯을 Contents/PlugIns/에 넣고 앱만 --deep 없이 다시 서명
+#   → desktop/dist-app/mac-arm64/UpLog.app (약 330MB), desktop/dist-app/UpLog-0.1.0-arm64.dmg (약 175MB)
+# 이미 만든 단계는 SKIP_WEB=1 SKIP_ENGINE=1 SKIP_RUNTIME=1 SKIP_WIDGET=1 로 건너뛴다.
 
 cd desktop && npm ci          # Electron 44.5.1, electron-builder 26.15.3, TypeScript 6.0.3 (모두 개발 의존성)
 npm start                     # 개발 실행: 저장소의 app/build/libs jar, web/out, desktop/build/runtime(없으면 시스템 java)
@@ -79,9 +81,9 @@ npm start                     # 개발 실행: 저장소의 app/build/libs jar, 
 - 개발 실행·검증용 환경변수: `UPLOG_DATA_DIR`(data-dir 바꾸기, 실제 폴더를 건드리지 않음), `UPLOG_ENGINE_ARGS`(엔진 인자 덧붙이기,
   예: `--uplog.credential.key-store=file --spring.profiles.active=desktop,fake-toss`), 개발 실행에서만 `UPLOG_JAVA`·`UPLOG_ENGINE_JAR`·
   `UPLOG_WEB_DIR`·`UPLOG_DEVTOOLS_PORT`(원격 디버깅 포트, 설치본은 무시).
-- 설치본을 임시 폴더로 띄워 보기: `open --env UPLOG_DATA_DIR=/tmp/uplog-try --env UPLOG_ENGINE_ARGS=--uplog.credential.key-store=file desktop/dist-app/mac-arm64/uplog.app`,
-  끄기: `osascript -e 'quit app "업로그"'`.
-- 앱 아이콘·메뉴바 아이콘(자리표시용)은 `cd desktop && npm run icons`로 다시 만든다(외부 의존 없음, `sips`·`iconutil`).
+- 설치본을 임시 폴더로 띄워 보기: `open --env UPLOG_DATA_DIR=/tmp/uplog-try --env UPLOG_ENGINE_ARGS=--uplog.credential.key-store=file desktop/dist-app/mac-arm64/UpLog.app`,
+  끄기: `osascript -e 'quit app "UpLog"'`.
+- 앱 아이콘은 `branding/UpLog.icns`, 메뉴바 아이콘은 `branding/trayTemplate.png`·`@2x`(템플릿 이미지)를 쓴다.
 
 | 모듈 | 내용 |
 |---|---|

@@ -1,4 +1,4 @@
-// 업로그 맥 앱의 main 프로세스: 로컬 엔진을 띄우고, 창과 메뉴바 아이콘을 둔다.
+// UpLog 맥 앱의 main 프로세스: 로컬 엔진을 띄우고, 창과 메뉴바 아이콘을 둔다.
 // 설계: docs/design/desktop-app.md
 import {
   app,
@@ -17,11 +17,9 @@ import { resolveConfig } from "./config";
 import { Engine, EngineStartError } from "./engine";
 import { RotatingLog } from "./log";
 
-const APP_NAME = "업로그";
+const APP_NAME = "UpLog";
+const URL_SCHEME = "uplog";
 app.setName(APP_NAME);
-
-// 기본 User-Agent에는 앱 이름(한글)이 들어간다. 엔진(Tomcat)의 정적 화면 응답이 ASCII가 아닌 헤더에 400을 주므로 ASCII로 바꾼다.
-app.userAgentFallback = app.userAgentFallback.replace(`${APP_NAME}/`, "uplog/");
 
 const config = resolveConfig(app.isPackaged, process.resourcesPath, process.env);
 mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
@@ -44,6 +42,13 @@ let quitting = false;
 let crashRestarts = 0;
 let status = "시작 중…";
 
+// uplog:// 링크: 앱을 열고 창을 앞으로 가져온다. (macOS는 이미 떠 있는 인스턴스에 open-url로 준다)
+app.on("open-url", (event, url) => {
+  event.preventDefault();
+  log.info(`링크로 열림: ${url.split("?")[0]}`);
+  if (app.isReady()) openWindow();
+});
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -56,6 +61,7 @@ async function main(): Promise<void> {
   log.info(`${APP_NAME} ${app.getVersion()} 시작 (packaged=${app.isPackaged}, electron ${process.versions.electron})`);
   Menu.setApplicationMenu(buildAppMenu());
   createTray();
+  registerUrlScheme();
 
   // 로그인 시 자동 실행으로 켜졌으면 창 없이 메뉴바에서만 돈다
   const openedAtLogin = app.getLoginItemSettings().wasOpenedAtLogin;
@@ -77,7 +83,7 @@ async function startEngine(): Promise<boolean> {
       const message = e instanceof EngineStartError ? e.message : String(e);
       log.info(`엔진 시작 실패: ${message}`);
       setStatus("엔진이 멈춤");
-      const choice = await askAfterFailure("업로그를 시작하지 못했어요", message);
+      const choice = await askAfterFailure(`${APP_NAME}를 시작하지 못했어요`, message);
       if (choice === "retry") continue;
       if (choice === "quit") {
         quit();
@@ -123,7 +129,7 @@ engine.on("exited", (code, signal) => {
       }
     }
     setStatus("엔진이 멈춤");
-    const choice = await askAfterFailure("업로그 엔진이 멈췄어요", `종료 코드 ${code ?? signal}`);
+    const choice = await askAfterFailure(`${APP_NAME} 엔진이 멈췄어요`, `종료 코드 ${code ?? signal}`);
     if (choice === "quit") return quit();
     crashRestarts = 0;
     if (await startEngine()) {
@@ -249,9 +255,19 @@ function setStatus(text: string): void {
   refreshTrayMenu();
 }
 
+function registerUrlScheme(): void {
+  // 설치본은 Info.plist(CFBundleURLTypes, electron-builder protocols)에도 들어 있다.
+  // 개발 실행은 등록하지 않는다(node_modules의 Electron이 uplog://를 가로채지 않게).
+  if (!app.isPackaged) return;
+  const ok = app.setAsDefaultProtocolClient(URL_SCHEME);
+  log.info(`${URL_SCHEME}:// 등록: ${ok}`);
+}
+
 function createTray(): void {
   // 템플릿 이미지(파일 이름이 ...Template.png): macOS가 메뉴바 밝기·다크 모드에 맞춰 칠한다. @2x는 자동으로 고른다.
-  const icon = nativeImage.createFromPath(join(__dirname, "..", "assets", "trayTemplate.png"));
+  // 설치본: Resources/branding, 개발 실행: 저장소의 branding/
+  const brandingDir = app.isPackaged ? join(process.resourcesPath, "branding") : join(__dirname, "..", "..", "branding");
+  const icon = nativeImage.createFromPath(join(brandingDir, "trayTemplate.png"));
   icon.setTemplateImage(true);
   tray = new Tray(icon);
   tray.setToolTip(APP_NAME);
@@ -264,7 +280,7 @@ function refreshTrayMenu(): void {
   const menu = Menu.buildFromTemplate([
     { label: `엔진: ${status}`, enabled: false },
     { type: "separator" },
-    { label: "업로그 열기", click: () => openWindow(), enabled: engine.running },
+    { label: `${APP_NAME} 열기`, click: () => openWindow(), enabled: engine.running },
     { label: "지금 수집", click: () => void syncNow(), enabled: engine.running },
     { type: "separator" },
     { label: "로그 폴더 열기", click: () => void shell.openPath(logsDir) },
@@ -279,7 +295,7 @@ function refreshTrayMenu(): void {
       },
     },
     { type: "separator" },
-    { label: "업로그 종료", click: () => quit() },
+    { label: `${APP_NAME} 종료`, click: () => quit() },
   ]);
   tray.setContextMenu(menu);
 }

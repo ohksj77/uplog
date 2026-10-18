@@ -10,7 +10,7 @@
 ## 구조
 
 ```
-uplog.app (Electron)
+UpLog.app (Electron)
  ├─ main 프로세스: 빈 포트 고르기, 실행마다 새 비밀 토큰 만들기, 엔진 띄우기, 창·메뉴바 아이콘
  ├─ runtime/  jlink로 줄인 Java 런타임
  ├─ engine.jar (Spring Boot, desktop 프로필)
@@ -54,8 +54,11 @@ uplog.app (Electron)
    모듈(23개): java.base, java.compiler, java.desktop, java.instrument, java.logging, java.management, java.naming, java.net.http, java.prefs,
    java.scripting, java.security.jgss, java.sql, java.sql.rowset, java.xml, jdk.charsets, jdk.crypto.ec, jdk.jfr, jdk.localedata, jdk.management,
    jdk.naming.dns, jdk.net, jdk.unsupported, jdk.zipfs. 스크립트가 이 런타임으로 엔진을 띄워 `/__health` 200을 확인한 뒤에 패키징한다.
-4. `desktop/`에서 electron-builder(`npm run dist`) → `desktop/dist-app/mac-arm64/uplog.app`(약 330MB, 그중 Electron 240MB)과
-   `desktop/dist-app/uplog-0.1.0-arm64.dmg`(약 175MB). arm64만, **ad-hoc 서명**(`identity: "-"`), hardened runtime 끔, 공증 없음.
+4. `desktop/`에서 electron-builder(`npm run dist`) → `desktop/dist-app/mac-arm64/UpLog.app`(약 330MB, 그중 Electron 240MB)과
+   `desktop/dist-app/UpLog-0.1.0-arm64.dmg`(약 175MB). 번들 id `dev.uplog.app`, 아이콘 `branding/UpLog.icns`, `uplog://` 스킴(`protocols`).
+   afterSign 훅(`desktop/scripts/after-sign.cjs`)이 `widget/build/UplogWidget.appex`를 `Contents/PlugIns/`에 넣고 앱만 `--deep` 없이
+   (`--preserve-metadata=entitlements,requirements,flags,runtime`) 다시 서명한다. DMG는 그 뒤에 만든다. 스크립트가 끝에 `codesign --verify --strict`와
+   위젯의 `app-sandbox` entitlements를 확인한다. arm64만, **ad-hoc 서명**(`identity: "-"`), hardened runtime 끔, 공증 없음.
    배포하려면 Apple Developer ID 서명·hardened runtime(+ JVM용 `allow-jit`·`allow-unsigned-executable-memory` 엔타이틀먼트)·공증이 필요하다.
 
 **Electron 껍데기** (`desktop/src`, TypeScript → `tsc`, 런타임 의존성 없음. Electron 44.5.1, electron-builder 26.15.3):
@@ -66,12 +69,12 @@ uplog.app (Electron)
   또 죽으면 같은 창.
 - 창: `contextIsolation`·`sandbox`·`webSecurity` 켬, `nodeIntegration` 끔, preload 없음, 설치본은 개발자 도구 끔, 권한 요청 모두 거부.
   엔진 출처 밖으로의 이동·새 창은 막고 http(s)만 기본 브라우저로 연다(tossinvest.com, 토스 문서).
-- User-Agent의 앱 이름을 ASCII(`uplog/…`)로 바꾼다: 엔진의 정적 화면 응답이 ASCII가 아닌 헤더(기본 UA의 "업로그/0.1.0")에 400을 준다.
 - 메뉴바 아이콘(템플릿 이미지): 엔진 상태, 업로그 열기, 지금 수집(main이 토큰을 쿠키로, 같은 출처 Origin으로 `POST /api/connections/toss/sync` → 알림),
   로그 폴더 열기, 로그인 시 자동 실행(`app.setLoginItemSettings`), 업로그 종료. 창을 닫으면 Dock 아이콘만 숨기고 계속 돈다.
-  종료(⌘Q·메뉴·`osascript -e 'quit app "업로그"'`)는 엔진에 SIGTERM, 15초 안에 안 끝나면 SIGKILL.
-- 번들 이름은 ASCII(`uplog.app`, `CFBundleName=uplog`)이고 보이는 이름 "업로그"는 `ko/en.lproj/InfoPlist.strings`와 `CFBundleDisplayName`으로 준다.
-  Electron 44는 `CFBundleName`으로 Helper 앱("<이름> Helper")을 찾는데, 한글 이름이면 시작하자마자 SIGTRAP으로 죽는다.
+  종료(⌘Q·메뉴·`osascript -e 'quit app "UpLog"'`)는 엔진에 SIGTERM, 15초 안에 안 끝나면 SIGKILL.
+- 앱 이름 `UpLog`(productName·`app.setName`·창 제목·메뉴·메뉴바 툴팁). 이름은 ASCII로 둔다: Electron 44는 `CFBundleName`으로 Helper 앱("<이름> Helper")을
+  찾는데, 한글 이름(예: "업로그")이면 시작하자마자 SIGTRAP으로 죽는다.
+- `uplog://…` 링크(위젯 누르기 등)는 `open-url`로 받아 창을 열거나 앞으로 가져온다. 설치본만 `app.setAsDefaultProtocolClient("uplog")`를 부른다.
 
 ## 실행 계약 (엔진 · 화면 · Electron)
 
@@ -162,9 +165,9 @@ widget/tools/render.sh   # 위젯 화면을 PNG로(ImageRenderer, 밝은·어두
 pluginkit -m -p com.apple.widgetkit-extension -v | grep dev.uplog   # 등록 확인
 ```
 
-**Electron 앱에 넣기**: `widget/build.sh`의 결과를 `uplog.app/Contents/PlugIns/UplogWidget.appex`로 복사한다(호스트 번들 id `dev.uplog.app`, 위젯 id는 그 접두어
+**Electron 앱에 넣기** (`scripts/build-mac-app.sh`가 한다): `widget/build.sh`의 결과를 `UpLog.app/Contents/PlugIns/UplogWidget.appex`로 복사한다(호스트 번들 id `dev.uplog.app`, 위젯 id는 그 접두어
 `dev.uplog.app.widget`이어야 한다). 서명은 안쪽부터: appex를 자기 entitlements로 먼저(build.sh가 이미 함), 그다음 앱. 앱을 `--deep`으로 서명하면 appex의
-entitlements가 지워지므로 쓰지 않는다(electron-builder면 appex를 서명 대상에서 빼거나 같은 entitlements를 준다). 앱은 `uplog://` 스킴을 등록하고
+entitlements가 지워지므로 쓰지 않는다(electron-builder가 서명을 마친 뒤 afterSign 훅에서 appex를 넣고 앱만 다시 서명한다). 앱은 `uplog://` 스킴을 등록하고
 (`CFBundleURLTypes`, `app.setAsDefaultProtocolClient("uplog")`), 위젯이 갤러리에 안 보이면 첫 실행 때 `lsregister -f {앱 경로}`를 한 번 부른다.
 앱은 `/Applications` 또는 `~/Applications`에 있어야 pluginkit이 등록한다.
 
