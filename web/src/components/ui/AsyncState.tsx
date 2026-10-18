@@ -11,11 +11,13 @@ export function LoadingBlock({ height = 240, label = "불러오는 중" }: { hei
 
 export function ErrorBlock({ error, onRetry }: { error: ApiError; onRetry?: () => void }) {
   const notConnected = error.code === "ACCOUNT_NOT_CONNECTED";
+  // 4xx는 다시 불러도 같은 결과라 재시도 버튼을 숨긴다.
+  const retryable = error.status === 0 || error.status >= 500;
   return (
     <section role="alert" className="rounded-2xl bg-surface px-5 py-10 text-center">
       <p className="font-semibold">{notConnected ? "연결된 계좌가 없어요" : "불러오지 못했어요"}</p>
       <p className="mt-2 text-sm text-muted">{error.message}</p>
-      {onRetry && !notConnected && (
+      {onRetry && retryable && (
         <button type="button" onClick={onRetry} className="mt-6 h-11 rounded-xl bg-accent px-5 text-sm font-semibold text-white">
           다시 시도
         </button>

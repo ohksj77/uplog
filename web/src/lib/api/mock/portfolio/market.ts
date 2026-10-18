@@ -156,7 +156,7 @@ export function mockUnderwater(): UnderwaterInsight {
           recovered: d.date,
           depth: round4(open.depth),
           daysToTrough: daysBetween(open.peak, open.trough),
-          daysToRecover: daysBetween(open.peak, d.date),
+          daysToRecover: daysBetween(open.trough, d.date), // 계약: 저점부터 회복까지
         });
         open = null;
       }
