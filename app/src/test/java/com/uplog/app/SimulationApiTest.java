@@ -175,9 +175,9 @@ class SimulationApiTest {
 
     @Test
     void currency_USD면_같은_매수를_달러로_나타내고_잘못된_통화는_400이다() throws Exception {
-        JsonNode krw = JSON.readTree(mvc.perform(simulation("069500,SPY").cookie(connected))
+        JsonNode krw = JSON.readTree(mvc.perform(simulation("069500,SPY"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        JsonNode usd = JSON.readTree(mvc.perform(simulation("069500,SPY").param("currency", "usd").cookie(connected))
+        JsonNode usd = JSON.readTree(mvc.perform(simulation("069500,SPY").param("currency", "usd"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currency", is("USD")))
                 .andReturn().getResponse().getContentAsString());
@@ -190,7 +190,7 @@ class SimulationApiTest {
             double ratio = krwDays.get(0).get("value").asDouble() / usdDays.get(0).get("value").asDouble();
             assertThat(ratio).isBetween(900.0, 2_000.0);
         }
-        mvc.perform(simulation("069500").param("currency", "EUR").cookie(connected))
+        mvc.perform(simulation("069500").param("currency", "EUR"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("INVALID_PARAMETER")))
                 .andExpect(jsonPath("$.message", containsString("currency")));
