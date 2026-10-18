@@ -37,7 +37,7 @@ export function HoldingsList({ holdings }: { holdings: Holding[] }) {
             </div>
             <div className="mt-2 flex items-center gap-2 text-xs text-muted">
               <span aria-hidden className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
-                <span className="block h-full rounded-full bg-accent/60" style={{ width: `${Math.min(100, h.weight * 100)}%` }} />
+                <span className="block h-full rounded-full bg-foreground/25" style={{ width: `${Math.min(100, h.weight * 100)}%` }} />
               </span>
               <span className="w-16 text-right tabular-nums">비중 {weightText(h.weight)}</span>
             </div>

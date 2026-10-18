@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { SiteNav } from "@/components/SiteNav";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { THEME_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -21,14 +23,25 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ko" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html
+      lang="ko"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // data-theme은 첫 페인트 전 스크립트가 붙이므로 서버 렌더와 다를 수 있다.
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col">
         <header className="border-b border-border">
           <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-4">
             <Link href="/" className="font-semibold tracking-tight">
               업로그
             </Link>
-            <SiteNav />
+            <div className="flex items-center gap-1">
+              <SiteNav />
+              <ThemeToggle />
+            </div>
           </div>
         </header>
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>

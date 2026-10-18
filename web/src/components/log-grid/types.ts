@@ -23,7 +23,7 @@ export type LogGridProps = {
 
 // ── 범용 격자(LogGridBase) ──────────────────────────────────────────────
 
-/** 툴팁 한 줄. tone이 있으면 값을 이익 초록 / 손실 빨강으로 칠한다. */
+/** 툴팁 한 줄. tone이 있으면 값을 이익 빨강 / 손실 파랑으로 칠한다. */
 export type LogTooltipRow = { label: string; value: string; tone?: "gain" | "loss" | "flat" };
 
 export type LogTooltip = { title: string; rows: LogTooltipRow[]; note?: string };

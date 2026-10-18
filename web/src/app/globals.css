@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
 /*
- * 디자인 토큰. 이익 = 초록, 손실 = 빨강 (GitHub 로그처럼).
+ * 디자인 토큰. 이익 = 빨강, 손실 = 파랑 (고정).
  * 로그 단계: 1(옅음) → 4(진함). 0은 변동 없음/데이터 없음.
+ *
+ * 테마: <html data-theme="light|dark">가 있으면 그것을, 없으면 시스템 설정을 따른다.
+ * 다크 값은 시스템 다크(라이트를 고르지 않았을 때)와 직접 고른 다크 두 곳에 같은 값으로 둔다.
  */
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --surface: #f6f7f9;
   --foreground: #191f28;
@@ -12,26 +16,29 @@
   --border: #e5e8eb;
   --accent: #3182f6;
 
-  --gain: #1a7f37;
-  --loss: #d1242f;
+  --gain: #e0283a;
+  --loss: #1d6ce0;
 
   --log-empty: #ebedf0;
   --log-zero: #d9dde3;
-  --gain-1: #9be9a8;
-  --gain-2: #40c463;
-  --gain-3: #30a14e;
-  --gain-4: #216e39;
-  --loss-1: #ffcdd0;
-  --loss-2: #ff9a9f;
-  --loss-3: #f0525a;
-  --loss-4: #c21d27;
+  --gain-1: #ffd6d9;
+  --gain-2: #ff9aa2;
+  --gain-3: #f45c68;
+  --gain-4: #c8102e;
+  --loss-1: #d3e4fd;
+  --loss-2: #8fbaf8;
+  --loss-3: #4a8ef2;
+  --loss-4: #1450b8;
 
-  --series-lump: #7c4dff;
+  --series-lump: #0d9f7a;
   --series-recurring: #c27c0e;
+  --trade-buy: #0d9f7a;
+  --trade-sell: #c27c0e;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --background: #101114;
     --surface: #1b1d22;
     --foreground: #eceef1;
@@ -39,23 +46,54 @@
     --border: #2c2f36;
     --accent: #4c95ff;
 
-    --gain: #3fb950;
-    --loss: #f85149;
+    --gain: #ff6b74;
+    --loss: #5ea1ff;
 
     --log-empty: #1f2228;
     --log-zero: #2c3038;
-    --gain-1: #0e4429;
-    --gain-2: #006d32;
-    --gain-3: #26a641;
-    --gain-4: #39d353;
-    --loss-1: #4c1d20;
-    --loss-2: #8e2a30;
-    --loss-3: #d9444c;
-    --loss-4: #ff7b72;
+    --gain-1: #4a1d22;
+    --gain-2: #8a2a34;
+    --gain-3: #d2404d;
+    --gain-4: #ff6b76;
+    --loss-1: #16294a;
+    --loss-2: #1f4b8f;
+    --loss-3: #3a7ae0;
+    --loss-4: #78afff;
 
-    --series-lump: #9677ff;
+    --series-lump: #2fbf96;
     --series-recurring: #e3a33a;
+    --trade-buy: #2fbf96;
+    --trade-sell: #e3a33a;
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #101114;
+  --surface: #1b1d22;
+  --foreground: #eceef1;
+  --muted: #9aa3ae;
+  --border: #2c2f36;
+  --accent: #4c95ff;
+
+  --gain: #ff6b74;
+  --loss: #5ea1ff;
+
+  --log-empty: #1f2228;
+  --log-zero: #2c3038;
+  --gain-1: #4a1d22;
+  --gain-2: #8a2a34;
+  --gain-3: #d2404d;
+  --gain-4: #ff6b76;
+  --loss-1: #16294a;
+  --loss-2: #1f4b8f;
+  --loss-3: #3a7ae0;
+  --loss-4: #78afff;
+
+  --series-lump: #2fbf96;
+  --series-recurring: #e3a33a;
+  --trade-buy: #2fbf96;
+  --trade-sell: #e3a33a;
 }
 
 @theme inline {
@@ -69,6 +107,8 @@
   --color-loss: var(--loss);
   --color-series-lump: var(--series-lump);
   --color-series-recurring: var(--series-recurring);
+  --color-trade-buy: var(--trade-buy);
+  --color-trade-sell: var(--trade-sell);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

@@ -31,12 +31,12 @@ function Swatch({ item }: { item: Item }) {
     case "dashed":
       return <span className="inline-block w-4 border-t-2 border-dashed border-muted" />;
     case "ref":
-      return <span className="inline-block w-4 border-t border-dotted border-series-recurring" />;
+      return <span className="inline-block w-4 border-t border-dotted border-trade-sell" />;
     case "guide":
       return <span className="inline-block h-3 border-l-2 border-border" />;
     case "buy":
-      return <span className="text-accent">▲</span>;
+      return <span className="text-trade-buy">▲</span>;
     case "sell":
-      return <span className="text-series-recurring">▼</span>;
+      return <span className="text-trade-sell">▼</span>;
   }
 }

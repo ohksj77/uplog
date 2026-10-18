@@ -4,7 +4,7 @@ import { useId, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { linearScale, spreadIndexes } from "@/components/charts/scale";
 import { useElementWidth } from "@/components/charts/use-element-width";
 
-// 0을 기준으로 위는 초록, 아래는 빨강으로 채우는 면적 차트. 수중 차트와 그림자 계좌 차이에 쓴다.
+// 0을 기준으로 위는 빨강(이익), 아래는 파랑(손실)으로 채우는 면적 차트. 수중 차트와 그림자 계좌 차이에 쓴다.
 
 export type SignedAreaChartProps = {
   /** x축 값(날짜). 오름차순. */

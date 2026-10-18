@@ -119,7 +119,7 @@ export function TrailChart({
             {refs.map((r, k) => (
               <line
                 key={k}
-                className="text-series-recurring"
+                className="text-trade-sell"
                 x1={x(r.fromIndex)}
                 x2={x(Math.min(n - 1, r.toIndex))}
                 y1={y(r.value)}
@@ -163,14 +163,14 @@ export function TrailChart({
 }
 
 function Marker({ cx, cy, side }: { cx: number; cy: number; side: "BUY" | "SELL" }) {
-  // 매수는 점 아래 ▲(파랑), 매도는 점 위 ▼(호박색)
+  // 매수는 점 아래 ▲(청록), 매도는 점 위 ▼(호박색)
   const s = 5;
   const d =
     side === "BUY"
       ? `M${cx},${cy + 4} l${s},${s * 1.6} h${-2 * s} z`
       : `M${cx},${cy - 4} l${s},${-s * 1.6} h${-2 * s} z`;
   return (
-    <g className={side === "BUY" ? "text-accent" : "text-series-recurring"}>
+    <g className={side === "BUY" ? "text-trade-buy" : "text-trade-sell"}>
       <circle cx={cx} cy={cy} r={3} fill="currentColor" stroke="var(--background)" strokeWidth={1.5} />
       <path d={d} fill="currentColor" />
     </g>

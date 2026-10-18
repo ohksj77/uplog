@@ -55,7 +55,7 @@ export function ShadowBody({ data }: { data: ShadowInsight }) {
           <h2 id="shadow-diff" className="text-lg font-semibold">
             차이의 흐름
           </h2>
-          <p className="mt-1 text-xs text-muted">내 계좌 − {name} 그림자 계좌. 위(초록)면 내가 앞서고, 아래(빨강)면 지수가 앞서요.</p>
+          <p className="mt-1 text-xs text-muted">내 계좌 − {name} 그림자 계좌. 위(빨강)면 내가 앞서고, 아래(파랑)면 지수가 앞서요.</p>
         </div>
         <SignedAreaChart
           labels={labels}

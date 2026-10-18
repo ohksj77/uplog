@@ -15,7 +15,7 @@ export function TradeList({ trades }: { trades: Trade[] }) {
           <li key={`${t.date}-${i}`} className="flex items-start justify-between gap-3 py-3 text-sm">
             <div className="min-w-0">
               <p>
-                <span className={`mr-2 font-semibold ${buy ? "text-accent" : "text-series-recurring"}`}>{buy ? "매수" : "매도"}</span>
+                <span className={`mr-2 font-semibold ${buy ? "text-trade-buy" : "text-trade-sell"}`}>{buy ? "매수" : "매도"}</span>
                 <span className="text-muted tabular-nums">{formatDate(t.date)}</span>
               </p>
               <p className="mt-0.5 text-xs text-muted tabular-nums">
