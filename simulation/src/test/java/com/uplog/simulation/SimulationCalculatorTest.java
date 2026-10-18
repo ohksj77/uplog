@@ -6,11 +6,17 @@ import static org.assertj.core.api.Assertions.within;
 
 import com.uplog.calc.PriceSeries;
 import com.uplog.simulation.api.SimulationResponse;
+import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 class SimulationCalculatorTest {
+
+    /** 원화 기준 금액은 scale 0 BigDecimal(JSON 정수)이다. */
+    private static BigDecimal won(long amount) {
+        return BigDecimal.valueOf(amount);
+    }
 
     private static SimulationQuery query(RecurringSchedule schedule, AmountType type, long amount) {
         return new SimulationQuery(java.util.List.of("TEST01"), SimulationPeriod.SIX_MONTHS, schedule, type, amount);
@@ -26,12 +32,12 @@ class SimulationCalculatorTest {
                 query(RecurringSchedule.weekly(DayOfWeek.MONDAY), AmountType.TOTAL, 100_000), prices, MON, to);
 
         // 월요일 3번 × 33,333원
-        assertThat(pair.recurring().summary().invested()).isEqualTo(99_999);
-        assertThat(pair.lumpSum().summary().invested()).isEqualTo(99_999);
+        assertThat(pair.recurring().summary().invested()).isEqualTo(won(99_999));
+        assertThat(pair.lumpSum().summary().invested()).isEqualTo(won(99_999));
         assertThat(pair.lumpSum().days()).hasSize(15).first().satisfies(d -> {
             assertThat(d.date()).isEqualTo(MON);
             assertThat(d.purchased()).isTrue();
-            assertThat(d.value()).isEqualTo(99_999);
+            assertThat(d.value()).isEqualTo(won(99_999));
         });
         assertThat(pair.lumpSum().days()).filteredOn(SimulationResponse.Day::purchased).hasSize(1);
         assertThat(pair.recurring().days()).filteredOn(SimulationResponse.Day::purchased)
@@ -40,13 +46,13 @@ class SimulationCalculatorTest {
 
         // 거치식: 99,999 × 0.8 = 79,999.2 → 79,999
         SimulationResponse.Summary lump = pair.lumpSum().summary();
-        assertThat(lump.finalValue()).isEqualTo(79_999);
-        assertThat(lump.profit()).isEqualTo(lump.finalValue() - lump.invested());
+        assertThat(lump.finalValue()).isEqualTo(won(79_999));
+        assertThat(lump.profit()).isEqualTo(lump.finalValue().subtract(lump.invested()));
         assertThat(lump.totalReturn()).isCloseTo(-0.2, within(1e-9));
         assertThat(pair.lumpSum().pain().maxDrawdown().rate()).isCloseTo(-0.5, within(1e-12));
         // 99,999원이 반토막: 평가손익 0 → −49,999.5 → 반올림 −50,000
-        assertThat(pair.lumpSum().pain().maxDrawdownAmount().amount()).isEqualTo(-50_000);
-        assertThat(pair.lumpSum().pain().worstDayAmount().pnl()).isEqualTo(-50_000);
+        assertThat(pair.lumpSum().pain().maxDrawdownAmount().amount()).isEqualTo(won(-50_000));
+        assertThat(pair.lumpSum().pain().worstDayAmount().pnl()).isEqualTo(won(-50_000));
         assertThat(pair.lumpSum().pain().underwater()).isNotNull()
                 .satisfies(u -> assertThat(u.recovered()).isFalse());
 
@@ -63,9 +69,9 @@ class SimulationCalculatorTest {
 
         assertThat(pair.lumpSum().pain().underwater()).isNull();
         assertThat(pair.recurring().pain().underwater()).isNull();
-        assertThat(pair.lumpSum().summary().invested()).isEqualTo(50_000);
+        assertThat(pair.lumpSum().summary().invested()).isEqualTo(won(50_000));
         assertThat(pair.recurring().days()).allSatisfy(d -> assertThat(d.purchased()).isTrue());
-        assertThat(pair.recurring().days().getFirst().close()).isEqualTo(100);
+        assertThat(pair.recurring().days().getFirst().close()).isEqualTo(won(100));
         assertThat(pair.recurring().days().getFirst().dailyReturn()).isZero();
     }
 
@@ -79,7 +85,7 @@ class SimulationCalculatorTest {
         assertThat(pair.recurring().days().getFirst().date()).isEqualTo(LocalDate.of(2026, 10, 20));
         assertThat(pair.recurring().days()).hasSize(4);
         assertThat(pair.lumpSum().days()).hasSize(10);
-        assertThat(pair.lumpSum().summary().invested()).isEqualTo(10_000);
+        assertThat(pair.lumpSum().summary().invested()).isEqualTo(won(10_000));
     }
 
     @Test

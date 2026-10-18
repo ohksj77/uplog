@@ -10,4 +10,6 @@ dependencies {
     implementation(project(":user-auth"))
     implementation("org.springframework:spring-webmvc")
     implementation("com.github.ben-manes.caffeine:caffeine")
+    // 응답 JSON 모양(금액 자릿수) 확인
+    testImplementation("tools.jackson.core:jackson-databind")
 }

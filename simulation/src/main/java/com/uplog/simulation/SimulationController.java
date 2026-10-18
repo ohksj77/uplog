@@ -39,8 +39,10 @@ public class SimulationController {
             @RequestParam(required = false) String dayOfWeek,
             @RequestParam(required = false) String dayOfMonth,
             @RequestParam(required = false) String amountType,
-            @RequestParam(required = false) String amount) {
-        SimulationQuery query = SimulationQuery.parse(etfs, period, frequency, dayOfWeek, dayOfMonth, amountType, amount);
+            @RequestParam(required = false) String amount,
+            @RequestParam(required = false) String currency) {
+        SimulationQuery query =
+                SimulationQuery.parse(etfs, period, frequency, dayOfWeek, dayOfMonth, amountType, amount, currency);
         return service.simulate(feedOf(user), query);
     }
 

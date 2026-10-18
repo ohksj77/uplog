@@ -30,7 +30,7 @@ import java.util.TreeSet;
 import org.springframework.stereotype.Service;
 
 /**
- * 기능 A 조회. 결과는 (정규화한 요청, 종목별 마지막 시세일, 시세 버전)을 키로 캐시한다.
+ * 기능 A 조회. 결과는 (정규화한 요청(기준 통화 포함), 종목별 마지막 시세일, 시세 버전)을 키로 캐시한다.
  * 새 시세가 들어오면 마지막 시세일이나 버전이 바뀌어 자연히 새 키가 된다.
  *
  * <p>실제 종목(국내·미국 ETF·주식)만 다룬다. 시세 소스({@link MarketFeed})는 요청자 자신의 키로 만든 것만 받고, 없으면
@@ -137,33 +137,47 @@ public class SimulationService {
         // 여러 종목을 같은 구간으로 비교하도록 종료일을 마지막 시세일 중 가장 이른 날로 맞춘다.
         LocalDate to = selected.stream().map(s -> s.range().lastDate()).min(Comparator.naturalOrder()).orElseThrow();
         LocalDate from = query.period().startFrom(to);
+        boolean usdBasis = query.currency() == CurrencyCode.USD;
         List<SimulationResponse.EtfResult> results = new ArrayList<>();
         for (Selected s : selected) {
             Instrument i = s.instrument();
             PriceSeries local = repository.loadCloses(i.id(), from, to)
                     .orElseThrow(() -> new SimulationException(
                             ErrorCode.NO_PRICE_DATA, i.name() + "의 " + from + " ~ " + to + " 시세가 없습니다."));
-            PriceSeries prices = i.currency() == CurrencyCode.USD ? toKrw(feed, query, i, local, from, to) : local;
-            SimulationCalculator.Pair pair = SimulationCalculator.calculate(query, prices, from, to);
+            boolean usdInstrument = i.currency() == CurrencyCode.USD;
+            Optional<PriceSeries> fxRates = usdInstrument || usdBasis
+                    ? usdKrw(feed, query, local, from, to)
+                    : Optional.empty();
+            PriceSeries prices = usdInstrument
+                    ? FxBackfill.toKrw(local, fxRates).orElseThrow(() -> new SimulationException(ErrorCode.NO_PRICE_DATA,
+                            i.name() + "은 달러 종목인데 " + from + " ~ " + to + " 원/달러 환율이 없어 원화로 환산할 수 없습니다."))
+                    : local;
+            Optional<UsdBasis> usd = Optional.empty();
+            if (usdBasis) {
+                PriceSeries rates = fxRates.orElseThrow(() -> new SimulationException(ErrorCode.NO_PRICE_DATA,
+                        from + " ~ " + to + " 원/달러 환율이 없어 " + i.name() + "의 결과를 달러 기준으로 볼 수 없습니다."));
+                usd = Optional.of(new UsdBasis(rates, usdInstrument ? Optional.of(local) : Optional.empty()));
+            }
+            SimulationCalculator.Pair pair = SimulationCalculator.calculate(query, prices, from, to, usd);
             results.add(new SimulationResponse.EtfResult(
                     new SimulationResponse.Etf(i.code(), i.name(), InstrumentUniverse.country(i.currency()), i.type().name(),
                             i.currency().name()),
                     pair.lumpSum(),
                     pair.recurring()));
         }
-        return new SimulationResponse(from, to, results, SimulationResponse.DISCLAIMER);
+        return new SimulationResponse(from, to, query.currency().name(), results, SimulationResponse.DISCLAIMER);
     }
 
     /**
-     * USD 종가를 그날 실제 USD/KRW(fx_rate의 USDKRW, 없는 날은 직전 환율)로 원화로 바꾼다.
+     * 기간의 실제 USD/KRW(fx_rate의 USDKRW). 원화 환산(미국 종목)과 달러 기준 보기에 같은 환율을 쓴다.
      * 매수일·종료일 근처에 환율이 없으면 요청자의 키로 그날만 받는다.
+     *
+     * @return 기간(과 그 앞 {@value #FX_LOOKBACK_DAYS}일)에 환율이 하나도 없으면 empty
      */
-    private PriceSeries toKrw(
-            MarketFeed feed, SimulationQuery query, Instrument i, PriceSeries local, LocalDate from, LocalDate to) {
+    private Optional<PriceSeries> usdKrw(
+            MarketFeed feed, SimulationQuery query, PriceSeries local, LocalDate from, LocalDate to) {
         fx.ensure(feed, purchaseDates(query, local, from, to));
-        return FxBackfill.toKrw(local, repository.loadFxRates(FxBackfill.PAIR, from.minusDays(FX_LOOKBACK_DAYS), to))
-                .orElseThrow(() -> new SimulationException(ErrorCode.NO_PRICE_DATA,
-                        i.name() + "은 달러 종목인데 " + from + " ~ " + to + " 원/달러 환율이 없어 원화로 환산할 수 없습니다."));
+        return repository.loadFxRates(FxBackfill.PAIR, from.minusDays(FX_LOOKBACK_DAYS), to);
     }
 
     /** 적립 매수일 + 거치식 매수일(첫 거래일) + 종료일. */
