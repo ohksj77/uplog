@@ -38,7 +38,7 @@ public final class MarketFeedException extends RuntimeException {
         return switch (reason) {
             case NO_KEY -> "연결된 계좌의 토스 키를 찾을 수 없어 시세를 받지 못했어요. 계좌를 다시 연결해 주세요.";
             case INVALID_KEY -> "토스 키가 더 이상 유효하지 않아 시세를 받지 못했어요. 계좌를 다시 연결해 주세요.";
-            case IP_NOT_ALLOWED -> "토스 허용 IP에 업로그 서버 IP가 등록돼 있지 않아 시세를 받지 못했어요. 연결 설정에서 IP를 확인해 주세요.";
+            case IP_NOT_ALLOWED -> "토스 허용 IP에 이 맥의 공인 IP가 등록돼 있지 않아 시세를 받지 못했어요. 연결 설정에서 내 공인 IP를 확인해 추가해 주세요.";
             case RATE_LIMITED -> "토스 시세 요청이 많아 잠시 막혔어요. 잠시 뒤 다시 시도해 주세요.";
             case KEY_IN_USE_ELSEWHERE -> "다른 곳에서 같은 토스 키를 쓰고 있어 시세를 받지 못했어요. 한 곳에서만 써 주세요.";
             case UNAVAILABLE -> "토스에서 시세를 받지 못했어요. 잠시 뒤 다시 시도해 주세요.";

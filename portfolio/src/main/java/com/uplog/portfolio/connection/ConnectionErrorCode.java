@@ -5,7 +5,7 @@ public enum ConnectionErrorCode {
     INVALID_PARAMETER(400),
     ACCOUNT_NOT_CONNECTED(404),
     TOSS_INVALID_CREDENTIALS(400),
-    /** 본문에 egressIps를 함께 준다 */
+    /** 본문에 publicIpCheck(이 맥의 공인 IP 확인 API)를 함께 준다 */
     TOSS_IP_NOT_ALLOWED(400),
     TOSS_NO_BROKERAGE_ACCOUNT(400),
     TOSS_RATE_LIMITED(429),

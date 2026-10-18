@@ -27,10 +27,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** local 프로필(H2 + 샘플 시세 + 데모 계좌)로 띄워 docs/api/portfolio.md의 JSON 형태와 숫자 불변식을 확인한다. */
+/** desktop 프로필(H2 + 샘플 시세 + 데모 계좌, 토스 연결 전)로 띄워 docs/api/portfolio.md의 JSON 형태와 숫자 불변식을 확인한다. */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles({"local", "api"})
+@ActiveProfiles("desktop")
 class PortfolioApiTest {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();

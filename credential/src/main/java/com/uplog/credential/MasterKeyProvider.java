@@ -1,8 +1,8 @@
 package com.uplog.credential;
 
 /**
- * 데이터키를 마스터키로 감싸고 푼다. 마스터키 자체는 이 인터페이스 밖으로 나오지 않는다(KMS로 옮길 수 있게).
- * 구현: {@link EnvMasterKeyProvider}(환경변수), {@link KmsMasterKeyProvider}(자리만).
+ * 데이터키를 마스터키로 감싸고 푼다. 마스터키 자체는 이 인터페이스 밖으로 나오지 않는다.
+ * 구현: {@link StaticMasterKeyProvider}(메모리의 키), {@link LazyMasterKeyProvider}(처음 쓸 때 macOS 키체인·키 파일에서 읽는다).
  */
 public interface MasterKeyProvider {
 

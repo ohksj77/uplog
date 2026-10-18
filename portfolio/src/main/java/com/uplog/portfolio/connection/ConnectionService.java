@@ -2,9 +2,9 @@ package com.uplog.portfolio.connection;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.uplog.auth.AuthUser;
-import com.uplog.auth.UnauthenticatedException;
-import com.uplog.auth.UserRepository;
+import com.uplog.localuser.DesktopLockedException;
+import com.uplog.localuser.LocalUsers;
+import com.uplog.localuser.LocalUsers.LocalUser;
 import com.uplog.core.WeekdayTradingCalendar;
 import com.uplog.portfolio.PortfolioDataVersion;
 import com.uplog.portfolio.PortfolioRepository;
@@ -55,36 +55,36 @@ public class ConnectionService {
     private static final List<String> NOTES = List.of(
             "PC에서 tossinvest.com에 로그인한 뒤, 오른쪽 아래 톱니바퀴(설정) > 왼쪽 메뉴 Open API에서 키를 발급받으세요.",
             "client_secret(tssk_live_…)은 발급할 때 한 번만 보여요. 바로 복사해 두고, 잃어버렸으면 재발급해야 해요.",
-            "같은 화면의 허용 IP 관리 > IP 추가로 아래 IP를 모두 등록해야 연결할 수 있어요(이미 있는 IP는 그대로 두세요).",
+            "같은 화면의 허용 IP 관리 > IP 추가로 이 맥의 공인 IP를 등록해야 연결할 수 있어요(이미 있는 IP는 그대로 두세요).",
+            "공인 IP는 공유기를 바꾸거나 인터넷 회사가 바꾸면 달라질 수 있어요. 그때는 수집이 IP 미등록으로 실패하니, 새 IP를 다시 추가해 주세요.",
             "키는 발급 1년 뒤 만료돼요. 만료 전에 재발급하고 '키 다시 넣기'를 해 주세요.",
             "이 키는 주문 권한도 가지고 있어요. 업로그는 조회 API만 호출하고, 키는 암호화해 보관하며 연결을 해제하면 바로 파기해요.",
             "같은 키를 다른 도구에서 함께 쓰면 서로 토큰을 끊어서 수집이 실패할 수 있어요. 업로그 전용 키를 발급받아 주세요.");
 
     private final PortfolioRepository repository;
     private final PortfolioDataVersion dataVersion;
-    private final UserRepository users;
+    private final LocalUsers users;
     private final BrokerVerifier verifier;
     private final IngestScheduler scheduler;
     private final CredentialStore credentials;
     private final List<AccountDataPurger> purgers;
     private final TransactionTemplate tx;
-    private final EgressProperties egress;
     private final ConnectionProperties properties;
     private final Clock clock;
     private final Cache<Long, Instant> recentSyncs;
 
     @Autowired
     public ConnectionService(
-            PortfolioRepository repository, PortfolioDataVersion dataVersion, UserRepository users, BrokerVerifier verifier,
+            PortfolioRepository repository, PortfolioDataVersion dataVersion, LocalUsers users, BrokerVerifier verifier,
             IngestScheduler scheduler, CredentialStore credentials, List<AccountDataPurger> purgers, TransactionTemplate tx,
-            EgressProperties egress, ConnectionProperties properties) {
-        this(repository, dataVersion, users, verifier, scheduler, credentials, purgers, tx, egress, properties, Clock.systemUTC());
+            ConnectionProperties properties) {
+        this(repository, dataVersion, users, verifier, scheduler, credentials, purgers, tx, properties, Clock.systemUTC());
     }
 
     ConnectionService(
-            PortfolioRepository repository, PortfolioDataVersion dataVersion, UserRepository users, BrokerVerifier verifier,
+            PortfolioRepository repository, PortfolioDataVersion dataVersion, LocalUsers users, BrokerVerifier verifier,
             IngestScheduler scheduler, CredentialStore credentials, List<AccountDataPurger> purgers, TransactionTemplate tx,
-            EgressProperties egress, ConnectionProperties properties, Clock clock) {
+            ConnectionProperties properties, Clock clock) {
         this.repository = repository;
         this.dataVersion = dataVersion;
         this.users = users;
@@ -93,7 +93,6 @@ public class ConnectionService {
         this.credentials = credentials;
         this.purgers = List.copyOf(purgers);
         this.tx = tx;
-        this.egress = egress;
         this.properties = properties;
         this.clock = clock;
         this.recentSyncs = Caffeine.newBuilder().expireAfterWrite(properties.syncInterval()).maximumSize(100_000).build();
@@ -102,11 +101,11 @@ public class ConnectionService {
     // ---- 조회
 
     public MeResponse me(Optional<Long> userId) {
-        Optional<AuthUser> user = userId.flatMap(users::find);
+        Optional<LocalUser> user = userId.flatMap(users::find);
         if (user.isEmpty()) {
             return new MeResponse(null, new MeConnection("NONE", null));
         }
-        AuthUser u = user.get();
+        LocalUser u = user.get();
         MeConnection connection = repository.activeAccountOf(u.id())
                 .map(a -> new MeConnection(status(scheduler.status(a.id())), a.maskedAccountNo()))
                 .orElse(new MeConnection("NONE", null));
@@ -114,7 +113,7 @@ public class ConnectionService {
     }
 
     public SetupResponse setup() {
-        return new SetupResponse(egress.egressIps(), properties.keyPageUrl(), NOTES, properties.simulated());
+        return new SetupResponse(ConnectionDtos.PUBLIC_IP_CHECK, properties.keyPageUrl(), NOTES, properties.simulated());
     }
 
     public ConnectionStatusResponse status(long userId) {
@@ -278,7 +277,7 @@ public class ConnectionService {
 
     private void requireNotConnected(long userId) {
         if (!users.exists(userId)) {
-            throw new UnauthenticatedException();
+            throw new DesktopLockedException();
         }
         if (repository.activeAccountOf(userId).isPresent()) {
             throw new ConnectionException(ConnectionErrorCode.ALREADY_CONNECTED,
@@ -318,7 +317,7 @@ public class ConnectionService {
                     },
                     null, e.field());
             case IP_NOT_ALLOWED -> new ConnectionException(ConnectionErrorCode.TOSS_IP_NOT_ALLOWED,
-                    "토스증권 허용 IP에 업로그 서버 IP가 등록되지 않았습니다. 허용 IP 관리에 아래 IP를 등록한 뒤 다시 시도해 주세요.");
+                    "토스증권 허용 IP에 이 맥의 공인 IP가 등록되지 않았어요. '내 공인 IP 확인'으로 IP를 확인해 허용 IP 관리에 추가한 뒤 다시 시도해 주세요.");
             case NO_BROKERAGE_ACCOUNT -> new ConnectionException(ConnectionErrorCode.TOSS_NO_BROKERAGE_ACCOUNT,
                     "토스증권 종합매매 계좌가 없습니다. 계좌를 개설한 뒤 다시 연결해 주세요.");
             case RATE_LIMITED -> new ConnectionException(ConnectionErrorCode.TOSS_RATE_LIMITED,
@@ -328,9 +327,5 @@ public class ConnectionService {
             case UNAVAILABLE -> new ConnectionException(ConnectionErrorCode.TOSS_UNAVAILABLE,
                     "토스증권에 연결할 수 없습니다. 잠시 뒤 다시 시도해 주세요.");
         };
-    }
-
-    List<String> egressIps() {
-        return egress.egressIps();
     }
 }

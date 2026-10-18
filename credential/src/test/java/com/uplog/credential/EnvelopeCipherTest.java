@@ -14,10 +14,10 @@ class EnvelopeCipherTest {
     private static final byte[] SECRET = "toss-secret-value-1234".getBytes(StandardCharsets.UTF_8);
     private static final byte[] AAD = BrokerCredentialVault.aad(7, "client-a");
 
-    private static EnvMasterKeyProvider master(int seed) {
+    private static StaticMasterKeyProvider master(int seed) {
         byte[] key = new byte[32];
         Arrays.fill(key, (byte) seed);
-        return new EnvMasterKeyProvider(key);
+        return new StaticMasterKeyProvider(key);
     }
 
     @Test
@@ -28,7 +28,7 @@ class EnvelopeCipherTest {
         assertThat(sealed.ciphertext()).isNotEqualTo(SECRET);
         assertThat(new String(sealed.ciphertext(), StandardCharsets.ISO_8859_1)).doesNotContain("toss-secret");
         assertThat(sealed.iv()).hasSize(12);
-        assertThat(sealed.dataKey().masterKeyId()).startsWith("env-");
+        assertThat(sealed.dataKey().masterKeyId()).startsWith("mk-");
         assertThat(cipher.open(sealed, AAD)).isEqualTo(SECRET);
     }
 
@@ -87,11 +87,11 @@ class EnvelopeCipherTest {
     void 마스터키는_base64_32바이트여야_한다() {
         byte[] key = new byte[32];
         Arrays.fill(key, (byte) 9);
-        assertThat(EnvMasterKeyProvider.fromBase64(Base64.getEncoder().encodeToString(key)).keyId())
+        assertThat(StaticMasterKeyProvider.fromBase64(Base64.getEncoder().encodeToString(key)).keyId())
                 .isEqualTo(master(9).keyId());
-        assertThatThrownBy(() -> EnvMasterKeyProvider.fromBase64(Base64.getEncoder().encodeToString(new byte[16])))
+        assertThatThrownBy(() -> StaticMasterKeyProvider.fromBase64(Base64.getEncoder().encodeToString(new byte[16])))
                 .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> EnvMasterKeyProvider.fromBase64("not base64!!"))
+        assertThatThrownBy(() -> StaticMasterKeyProvider.fromBase64("not base64!!"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageNotContaining("not base64");
     }
@@ -105,6 +105,6 @@ class EnvelopeCipherTest {
                 .doesNotContain("toss-secret-value-1234");
         assertThat(sealed.toString()).doesNotContain("toss-secret");
         assertThat(master(1).toString()).doesNotContain(Base64.getEncoder().encodeToString(new byte[] {1, 1, 1}));
-        assertThat(new CredentialProperties("bWFzdGVyLWtleQ==").toString()).doesNotContain("bWFzdGVyLWtleQ==");
+        assertThat(new CredentialProperties("bWFzdGVyLWtleQ==", CredentialProperties.KeyStore.AUTO, null).toString()).doesNotContain("bWFzdGVyLWtleQ==");
     }
 }

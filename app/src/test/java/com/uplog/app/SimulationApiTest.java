@@ -13,7 +13,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import jakarta.servlet.http.Cookie;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -33,22 +32,20 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 기능 A 계약(docs/api/simulation.md). 실제 종목만 다루고, 시세는 요청자 자신의 토스 키로 받는다.
- * 가짜 토스 서버(fake-toss)에 연결한 사용자로 검색·시뮬레이션하고, 비로그인·미연결·키 실패를 확인한다.
+ * 가짜 토스 서버(fake-toss)에 연결한 로컬 사용자로 검색·시뮬레이션하고, 미연결·키 실패를 확인한다.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-    "spring.datasource.url=jdbc:h2:mem:uplog-sim;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1",
+    "uplog.test.context=SimulationApiTest", // 클래스마다 따로 컨텍스트(새 메모리 DB)
     "uplog.ingest.worker-enabled=false",
     "uplog.toss.rate-limit-multiplier=1000",
     "uplog.toss.fake-server.rate-limit-multiplier=1000"
 })
 @AutoConfigureMockMvc
-@ActiveProfiles({"local", "api", "fake-toss"})
+@ActiveProfiles({"desktop", "fake-toss"})
 class SimulationApiTest {
 
     private static final String DATE = "\\d{4}-\\d{2}-\\d{2}";
     private static final JsonMapper JSON = JsonMapper.builder().build();
-
-    private static Cookie connected;
 
     @Autowired
     private MockMvc mvc;
@@ -57,19 +54,18 @@ class SimulationApiTest {
 
     @BeforeEach
     void connectOnce() throws Exception {
-        if (connected == null) {
-            connected = connect("시뮬연결", "sim-client");
+        String me = mvc.perform(get("/api/me")).andReturn().getResponse().getContentAsString();
+        if (me.contains("\"NONE\"")) {
+            connect("sim-client");
         }
     }
 
-    private Cookie connect(String nickname, String clientId) throws Exception {
-        Cookie session = Sessions.devLogin(mvc, nickname);
-        var r = mvc.perform(post("/api/connections/toss").cookie(session).header("Origin", Sessions.WEB_ORIGIN)
+    private void connect(String clientId) throws Exception {
+        var r = mvc.perform(post("/api/connections/toss").header("Origin", LocalAccount.DEV_ORIGIN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"clientId\":\"" + clientId + "\",\"clientSecret\":\"secret\"}"))
                 .andReturn().getResponse();
         assertThat(r.getStatus()).as(r.getContentAsString()).isEqualTo(201);
-        return session;
     }
 
     private static MockHttpServletRequestBuilder simulation(String etfs) {
@@ -83,31 +79,26 @@ class SimulationApiTest {
     }
 
     @Test
-    void 비로그인과_미연결_사용자는_검색도_시뮬레이션도_403_SIMULATION_REQUIRES_CONNECTION이다() throws Exception {
-        Cookie unconnected = Sessions.devLogin(mvc, "미연결");
-        for (Cookie session : new Cookie[] {null, unconnected}) {
-            for (MockHttpServletRequestBuilder request : List.of(
-                    get("/api/etfs"), get("/api/instruments").param("query", "200"), simulation("069500"))) {
-                if (session != null) {
-                    request.cookie(session);
-                }
-                mvc.perform(request)
-                        .andExpect(status().isForbidden())
-                        .andExpect(jsonPath("$.code", is("SIMULATION_REQUIRES_CONNECTION")))
-                        .andExpect(jsonPath("$.message", containsString("계좌를 연결하면")));
-            }
+    void 토스를_연결하지_않았으면_검색도_시뮬레이션도_403_SIMULATION_REQUIRES_CONNECTION이다() throws Exception {
+        LocalAccount.reset(mvc);
+        for (MockHttpServletRequestBuilder request : List.of(
+                get("/api/etfs"), get("/api/instruments").param("query", "200"), simulation("069500"))) {
+            mvc.perform(request)
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code", is("SIMULATION_REQUIRES_CONNECTION")))
+                    .andExpect(jsonPath("$.message", containsString("계좌를 연결하면")));
         }
     }
 
     @Test
     void 연결한_사용자의_검색은_ETF가_주식보다_먼저이고_샘플_종목은_없다() throws Exception {
-        mvc.perform(get("/api/etfs").param("query", "200").cookie(connected))
+        mvc.perform(get("/api/etfs").param("query", "200"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].code", contains("069500", "229200", "102110")))
                 .andExpect(jsonPath("$[*].type", everyItem(is("ETF"))))
                 .andExpect(jsonPath("$[*].market", everyItem(is("KR"))))
                 .andExpect(jsonPath("$[*].code", not(hasItem("500001")))); // ETN은 뺀다
-        String body = mvc.perform(get("/api/instruments").param("query", "SP").cookie(connected))
+        String body = mvc.perform(get("/api/instruments").param("query", "SP"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].code", is("SPY")))
                 .andExpect(jsonPath("$[0].market", is("US")))
@@ -115,21 +106,21 @@ class SimulationApiTest {
                 .andExpect(jsonPath("$[0].currency", is("USD")))
                 .andReturn().getResponse().getContentAsString();
         assertKeys(JSON.readTree(body).get(0), "code", "name", "market", "type", "currency", "firstDate", "lastDate");
-        mvc.perform(get("/api/etfs").param("query", "삼성").cookie(connected))
+        mvc.perform(get("/api/etfs").param("query", "삼성"))
                 .andExpect(jsonPath("$[*].code", contains("005930", "005935")))
                 .andExpect(jsonPath("$[*].type", everyItem(is("STOCK"))));
         // FOREIGN_ETF도 ETF. 데모 계좌의 샘플 종목(샘플전자, SMPS …)은 나오지 않는다
-        mvc.perform(get("/api/etfs").param("query", "VOO").cookie(connected)).andExpect(jsonPath("$[0].type", is("ETF")));
-        mvc.perform(get("/api/etfs").param("query", "샘플").cookie(connected)).andExpect(jsonPath("$").isEmpty());
-        mvc.perform(get("/api/etfs").param("query", "SMP").cookie(connected)).andExpect(jsonPath("$").isEmpty());
-        mvc.perform(get("/api/etfs").param("limit", "0").cookie(connected))
+        mvc.perform(get("/api/etfs").param("query", "VOO")).andExpect(jsonPath("$[0].type", is("ETF")));
+        mvc.perform(get("/api/etfs").param("query", "샘플")).andExpect(jsonPath("$").isEmpty());
+        mvc.perform(get("/api/etfs").param("query", "SMP")).andExpect(jsonPath("$").isEmpty());
+        mvc.perform(get("/api/etfs").param("limit", "0"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("INVALID_PARAMETER")));
     }
 
     @Test
     void 국내_ETF와_미국_ETF를_원화로_시뮬레이션한다() throws Exception {
-        String body = mvc.perform(simulation("069500,SPY").cookie(connected))
+        String body = mvc.perform(simulation("069500,SPY"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.from", matchesPattern(DATE)))
                 .andExpect(jsonPath("$.to", matchesPattern(DATE)))
@@ -183,7 +174,7 @@ class SimulationApiTest {
 
     @Test
     void TOTAL은_총액을_회차로_나눠_거치식도_같은_금액을_넣는다() throws Exception {
-        String body = mvc.perform(get("/api/simulations").cookie(connected)
+        String body = mvc.perform(get("/api/simulations")
                         .param("etfs", "005930")
                         .param("period", "6M")
                         .param("frequency", "WEEKLY")
@@ -203,19 +194,19 @@ class SimulationApiTest {
 
     @Test
     void 잘못된_파라미터는_400이고_없는_종목_샘플_종목_ETN은_404다() throws Exception {
-        mvc.perform(get("/api/simulations").cookie(connected)
+        mvc.perform(get("/api/simulations")
                         .param("etfs", "069500").param("period", "1Y").param("frequency", "WEEKLY")
                         .param("amountType", "TOTAL").param("amount", "1000000"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("INVALID_PARAMETER")))
                 .andExpect(jsonPath("$.message", containsString("dayOfWeek")));
-        mvc.perform(get("/api/simulations").cookie(connected)).andExpect(status().isBadRequest());
-        mvc.perform(simulation("069500,A/B").cookie(connected)).andExpect(status().isBadRequest());
-        mvc.perform(simulation("A,B,C,D").cookie(connected))
+        mvc.perform(get("/api/simulations")).andExpect(status().isBadRequest());
+        mvc.perform(simulation("069500,A/B")).andExpect(status().isBadRequest());
+        mvc.perform(simulation("A,B,C,D"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("최대 3개")));
         for (String code : new String[] {"NOPE99", "SMPS", "S00003", "500001", "brk.b"}) {
-            mvc.perform(simulation("069500," + code).cookie(connected))
+            mvc.perform(simulation("069500," + code))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.code", is("ETF_NOT_FOUND")))
                     .andExpect(jsonPath("$.message", containsString(code.toUpperCase(Locale.ROOT))));
@@ -224,15 +215,17 @@ class SimulationApiTest {
 
     @Test
     void 요청자_키로_시세를_받지_못하면_502_MARKET_DATA_UNAVAILABLE이고_다른_데이터로_대신하지_않는다() throws Exception {
-        // 계좌 조회는 되지만 시세 조회는 403 ip-not-allowed인 키. 다른 사용자가 받아 둔 시세가 있어도 보여 주지 않는다.
-        mvc.perform(simulation("069500").cookie(connected)).andExpect(status().isOk());
-        Cookie blocked = connect("막힌키", "market-blocked-client");
+        // 계좌 조회는 되지만 시세 조회는 403 ip-not-allowed인 키. 앞서 받아 둔 시세가 있어도 보여 주지 않는다.
+        mvc.perform(simulation("069500")).andExpect(status().isOk());
+        LocalAccount.reset(mvc);
+        connect("market-blocked-client");
         for (MockHttpServletRequestBuilder request : List.of(get("/api/etfs").param("query", "200"), simulation("069500"))) {
-            mvc.perform(request.cookie(blocked))
+            mvc.perform(request)
                     .andExpect(status().isBadGateway())
                     .andExpect(jsonPath("$.code", is("MARKET_DATA_UNAVAILABLE")))
                     .andExpect(jsonPath("$.message", containsString("IP")));
         }
+        LocalAccount.reset(mvc);
     }
 
     private static long count(JsonNode days) {

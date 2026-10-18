@@ -16,7 +16,7 @@ import com.uplog.portfolio.api.PortfolioDtos.ShadowResponse;
 import com.uplog.portfolio.api.PortfolioDtos.SummaryResponse;
 import com.uplog.portfolio.api.PortfolioDtos.UnderwaterResponse;
 import com.uplog.portfolio.api.PortfolioDtos.WaterfallResponse;
-import com.uplog.auth.CurrentUser;
+import com.uplog.localuser.CurrentUser;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.web.bind.annotation.GetMapping;

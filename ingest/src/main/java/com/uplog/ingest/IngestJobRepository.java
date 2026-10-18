@@ -184,6 +184,14 @@ public class IngestJobRepository {
                 .single();
     }
 
+    /** 성공한 일일 수집 중 가장 늦은 기준일. */
+    public Optional<LocalDate> lastDailyDoneAsOf(long accountId) {
+        return jdbc.sql("SELECT MAX(as_of) FROM ingest_job WHERE account_id = :accountId AND kind = 'DAILY' AND state = 'DONE'")
+                .param("accountId", accountId)
+                .query((rs, n) -> Optional.ofNullable(rs.getDate(1)).map(Date::toLocalDate))
+                .single();
+    }
+
     private static IngestJob map(ResultSet rs, int rowNum) throws SQLException {
         Date asOf = rs.getDate("as_of");
         Timestamp finished = rs.getTimestamp("finished_at");

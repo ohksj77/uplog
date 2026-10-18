@@ -20,12 +20,12 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
- * local 프로필 전용 합성 데모 계좌("데모 계좌", sample=true). 샘플 시세(SampleMarketSeeder)가 들어간 뒤에 돈다.
+ * desktop 프로필의 합성 데모 계좌("데모 계좌", sample=true). 샘플 시세(SampleMarketSeeder)가 들어간 뒤에 돈다.
  * 토스 수집기가 없어 이 원시 데이터로 기능 B 화면을 띄운다. 데모 계좌가 이미 있으면 건너뛴다.
- * 주인이 없는 계좌(user_id = null)라서 비로그인 방문자에게 보인다.
+ * 주인이 없는 계좌(user_id = null)라서 토스를 연결하기 전에 보인다.
  */
 @Component
-@Profile("local")
+@Profile("desktop")
 @Order(200)
 public class DemoAccountSeeder implements ApplicationRunner {
 

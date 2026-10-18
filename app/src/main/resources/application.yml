@@ -2,122 +2,100 @@ spring:
   application:
     name: uplog
   profiles:
-    default: api
+    # 맥 앱의 로컬 엔진. Electron은 --spring.profiles.active=desktop으로 띄운다(docs/design/desktop-app.md "실행 계약").
+    default: desktop
   datasource:
-    # 운영: PostgreSQL. 값은 환경변수로 넣는다(로컬 Postgres는 루트의 docker-compose.yml).
+    # desktop 프로필이 아닐 때만 쓰는 PostgreSQL(나중을 위해 남겨 둔다). desktop은 아래에서 H2 파일 DB로 바꾼다.
     url: ${UPLOG_DB_URL:jdbc:postgresql://localhost:5432/uplog}
     username: ${UPLOG_DB_USERNAME:uplog}
     password: ${UPLOG_DB_PASSWORD:uplog}
   flyway:
     # 마이그레이션은 각 모듈의 db/migration에 둔다. 버전은 모듈별 구간:
-    # market-data V1–V99, portfolio V100–V199, user-auth V200–V299, credential V300–V399, ingest V400–V499.
+    # market-data V1–V99, portfolio V100–V199, local-user V200–V299, credential V300–V399, ingest V400–V499.
     # 앞 구간 모듈이 나중에 새 버전을 추가해도 적용되도록 out-of-order를 켠다.
     locations: classpath:db/migration
     out-of-order: true
 
-server:
-  # Next rewrites(/oauth2/**, /login/oauth2/**)를 거쳐 오는 요청의 X-Forwarded-Host/Proto로 카카오 redirect_uri를 만든다.
-  # 앞단 프록시가 X-Forwarded-*를 덮어쓰는 구성에서만 켜 둔다.
-  forward-headers-strategy: framework
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
-
 uplog:
+  desktop:
+    # Electron이 실행마다 넘기는 256비트(base64url) 토큰. dev-open이 아니면 필수.
+    launch-token: ""
+    # H2 파일 DB(uplog.mv.db)·로그(logs/engine.log)·키 파일 위치
+    data-dir: ${user.home}/Library/Application Support/uplog
+    # web 정적 export 폴더(next build의 out/). 비어 있으면 화면 없이 API만
+    web-dir: ""
+    # 개발용: 토큰·Host 검사를 끈다(127.0.0.1 바인딩은 그대로). next dev(localhost:3000)가 /api를 넘긴다.
+    dev-open: false
   market-data:
     public-data:
-      # 공공데이터포털 금융위원회_증권상품시세정보 인증키(Decoding). 비어 있으면 ETF 시세 수집 잡이 뜨지 않는다.
+      # 공공데이터포털 금융위원회_증권상품시세정보 인증키(Decoding). 비어 있으면(기본) ETF 시세 수집 잡이 뜨지 않는다.
       service-key: ${UPLOG_PUBLIC_DATA_SERVICE_KEY:}
-  auth:
-    # 세션 JWT(HS256) 서명 키, 32바이트 이상. 비어 있으면 실행마다 무작위 키(재시작하면 모두 로그아웃).
-    session-secret: ${UPLOG_SESSION_SECRET:}
-    # 운영(HTTPS)에서는 true
-    secure-cookie: ${UPLOG_SECURE_COOKIE:false}
-    session-ttl: 14d
-    # 상태를 바꾸는 요청에 허용하는 Origin(쉼표로 구분). 요청 자신의 출처는 항상 허용한다.
-    allowed-origins: ${UPLOG_ALLOWED_ORIGINS:http://localhost:3000}
-    kakao:
-      # 둘 다 있을 때만 카카오 로그인(/oauth2/authorization/kakao)이 켜진다.
-      client-id: ${UPLOG_KAKAO_CLIENT_ID:}
-      client-secret: ${UPLOG_KAKAO_CLIENT_SECRET:}
-      redirect-uri: ${UPLOG_KAKAO_REDIRECT_URI:{baseUrl}/login/oauth2/code/{registrationId}}
   credential:
-    # 증권사 키 봉투 암호화의 마스터키(base64, 32바이트). local 프로필은 없으면 고정 개발 키를 쓴다.
-    master-key: ${UPLOG_MASTER_KEY:}
-  # 토스를 호출하는 서버의 고정 IP(쉼표로 구분). 연결 안내에서 사용자가 토스 허용 IP에 등록한다.
-  egress-ips: ${UPLOG_EGRESS_IPS:}
+    # 마스터키 보관: auto(macOS면 키체인, 아니면 key-file), keychain, file
+    key-store: auto
+    key-file: ${uplog.desktop.data-dir}/master.key
   connection:
     # Open API는 별도 주소 없이 tossinvest.com 설정(톱니) 팝업의 Open API 메뉴에 있다
     key-page-url: https://www.tossinvest.com/
     sync-interval: 1h
+  public-ip:
+    # "내 공인 IP 확인"을 누를 때만 부른다(최대 1분 기억)
+    url: https://api.ipify.org?format=json
+    timeout: 4s
+    cache-ttl: 1m
   toss:
     # 토스증권 Open API. 클라이언트는 POST /oauth2/token과 조회용 GET만 보낼 수 있다(허용 목록).
-    base-url: ${UPLOG_TOSS_BASE_URL:https://openapi.tossinvest.com}
+    base-url: https://openapi.tossinvest.com
     max-retries: 3
-    # 그룹별 문서 한도(초당)에 곱하는 값. 운영은 1.
+    # 그룹별 문서 한도(초당)에 곱하는 값. 실제 토스는 1.
     rate-limit-multiplier: 1
   ingest:
-    # 이 인스턴스가 수집 큐를 폴링할지. 워커를 고정 IP 뒤 batch 인스턴스로만 돌리려면 api 쪽에서 false.
-    worker-enabled: ${UPLOG_INGEST_WORKER_ENABLED:true}
+    worker-enabled: true
+    # 일이 있을 때 2초, 한가하면 30초마다 큐를 본다(이 엔진이 작업을 넣으면 바로 깬다)
     poll-interval: 2s
+    idle-poll-interval: 30s
     max-attempts: 3
     backoff: 1m
+    # 앱이 켜져 있으면 매일 07:00(KST) 직전 거래일 수집. 꺼져 있었으면 시작할 때·30분마다 놓친 날을 따라잡는다.
     daily-cron: "0 0 7 * * TUE-SAT"
+    catch-up-interval: 30m
 
 ---
+# 맥 앱의 로컬 엔진. 환경변수 없이 뜬다. 값은 Electron이 명령행으로 넘긴다:
+#   --server.port={port} --uplog.desktop.launch-token={token} --uplog.desktop.data-dir={dir} --uplog.desktop.web-dir={dir}
+# 개발: ./gradlew :app:bootRun --args='--spring.profiles.active=desktop,fake-toss --uplog.desktop.dev-open=true --uplog.desktop.data-dir=/tmp/uplog-dev'
 spring:
   config:
     activate:
-      on-profile: batch
-  main:
-    web-application-type: none
-
----
-# Docker 없이 띄우는 개발용 프로필: H2(PostgreSQL 모드) 메모리 DB + 합성 샘플 ETF 4종 + 기능 B 샘플 종목·지수·환율과 데모 계좌.
-# ./gradlew :app:bootRun --args='--spring.profiles.active=local,api'
-spring:
-  config:
-    activate:
-      on-profile: local
+      on-profile: desktop
   datasource:
-    # 기본은 메모리(재시작하면 비워짐, 테스트도 이걸 쓴다). 연결을 유지하려면 파일로:
-    # UPLOG_LOCAL_DB_URL='jdbc:h2:file:~/.uplog/local;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH'
-    url: ${UPLOG_LOCAL_DB_URL:jdbc:h2:mem:uplog;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1}
+    url: jdbc:h2:file:${uplog.desktop.data-dir}/uplog;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
     username: sa
     password: ""
 
-uplog:
-  auth:
-    # 개발용 고정 세션 키(운영 금지). 재시작해도 로그인이 유지된다.
-    session-secret: ${UPLOG_SESSION_SECRET:uplog-local-dev-session-secret-not-for-production}
-  # 진짜 토스에 붙을 때 사용자가 허용 IP로 등록할 이 서버의 공인 IP. 비어 있으면 연결 화면이 IP를 보여 주지 못한다.
-  egress-ips: ${UPLOG_EGRESS_IPS:}
+server:
+  # 늘 127.0.0.1에만. 다른 주소면 엔진이 시작하지 않는다.
+  address: 127.0.0.1
+  port: 8080
 
-# 토스 응답의 키 이름(값 제외)을 남겨 실제 응답 형식을 확인한다
 logging:
-  level:
-    com.uplog.broker.toss.TossClient: DEBUG
-  ingest:
-    backoff: 5s
+  file:
+    name: ${uplog.desktop.data-dir}/logs/engine.log
 
 ---
-# 가짜 토스 서버(개발·테스트용). 켜면 토스 요청이 진짜 토스 대신 같은 앱의 /__fake-toss/**로 간다.
-# 진짜 키를 넣어도 진짜 토스로 가지 않으므로, 이 프로필은 명시적으로 켤 때만 쓴다: --spring.profiles.active=local,api,fake-toss
+# 가짜 토스 서버(개발·테스트용). 켜면 토스 요청이 진짜 토스 대신 같은 엔진의 /__fake-toss/**로 간다.
+# 진짜 키를 넣어도 진짜 토스로 가지 않으므로, 이 프로필은 명시적으로 켤 때만 쓴다: --spring.profiles.active=desktop,fake-toss
 spring:
   config:
     activate:
       on-profile: fake-toss
 
 uplog:
-  egress-ips: ${UPLOG_EGRESS_IPS:127.0.0.1}
   connection:
     simulated: true
   toss:
     # 포트는 서버가 뜬 뒤 정해지므로 요청 때마다 읽는다.
-    base-url: http://localhost:${local.server.port:${server.port:8080}}/__fake-toss
+    base-url: http://127.0.0.1:${local.server.port:${server.port:8080}}/__fake-toss
     # 가짜 서버라 한도를 크게 둔다(역산의 일별 환율 수백 건을 몇 초 안에)
     rate-limit-multiplier: 20
     fake-server:
