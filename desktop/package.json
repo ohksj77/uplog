@@ -1,0 +1,84 @@
+{
+  "name": "uplog-desktop",
+  "productName": "uplog",
+  "version": "0.1.0",
+  "private": true,
+  "description": "업로그 맥 앱: 로컬 엔진(Java)과 화면을 띄우는 Electron 껍데기",
+  "author": "uplog",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "icons": "node scripts/make-icons.mjs",
+    "runtime": "scripts/build-runtime.sh",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --mac --arm64 --publish never",
+    "postinstall": "node node_modules/electron/install.js"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3",
+    "typescript": "6.0.3"
+  },
+  "build": {
+    "appId": "com.uplog.desktop",
+    "productName": "uplog",
+    "artifactName": "uplog-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "dist-app",
+      "buildResources": "assets"
+    },
+    "files": [
+      "dist/**/*.js",
+      "assets/trayTemplate*.png",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/runtime",
+        "to": "runtime"
+      },
+      {
+        "from": "build/engine.jar",
+        "to": "engine.jar"
+      },
+      {
+        "from": "build/web",
+        "to": "web"
+      },
+      {
+        "from": "assets/lproj/ko.lproj",
+        "to": "ko.lproj"
+      },
+      {
+        "from": "assets/lproj/en.lproj",
+        "to": "en.lproj"
+      }
+    ],
+    "asar": true,
+    "mac": {
+      "target": [
+        "dir",
+        "dmg"
+      ],
+      "category": "public.app-category.finance",
+      "icon": "assets/icon.icns",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "minimumSystemVersion": "12.0",
+      "extendInfo": {
+        "CFBundleDisplayName": "업로그",
+        "LSHasLocalizedDisplayName": true,
+        "NSHumanReadableCopyright": "업로그"
+      }
+    },
+    "dmg": {
+      "title": "업로그 ${version}"
+    },
+    "electronLanguages": [
+      "ko",
+      "en"
+    ]
+  }
+}

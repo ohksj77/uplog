@@ -44,10 +44,34 @@ uplog.app (Electron)
 
 ## 빌드
 
-1. `./gradlew :app:bootJar` → engine.jar
-2. `jdeps`로 필요한 모듈을 골라 `jlink`로 런타임을 만든다(약 50MB).
-3. `web`에서 `next build`(export) → engine.jar의 `static/`에 넣는다.
-4. `desktop/`에서 electron-builder로 `.app`/`.dmg`(개발용은 서명 없음. 배포는 Apple Developer ID 서명·공증 필요).
+한 번에: `scripts/build-mac-app.sh` (단계별로 `SKIP_WEB=1`·`SKIP_ENGINE=1`·`SKIP_RUNTIME=1`).
+
+1. `cd web && npm run build` → `web/out/`(정적 export, 약 2.6MB). jar에 넣지 않고 앱의 `Resources/web`에 두고 `--uplog.desktop.web-dir`로 넘긴다.
+2. `./gradlew :app:bootJar` → `app/build/libs/app-0.1.0-SNAPSHOT.jar`(약 32MB) → `Resources/engine.jar`.
+3. `desktop/scripts/build-runtime.sh`: fat jar의 `BOOT-INF/lib`·`classes`를 풀어 `jdeps --print-module-deps --ignore-missing-deps --multi-release 25 --recursive`로
+   모듈을 고르고, jdeps가 못 보는 모듈(JNDI·DNS, 문자셋, ko 로캘, zipfs, JMX, JDBC 등)을 더해
+   `jlink --strip-debug --no-header-files --no-man-pages --compress=zip-6 --include-locales=en,ko` → `desktop/build/runtime`(약 54MB) → `Resources/runtime`.
+   모듈(23개): java.base, java.compiler, java.desktop, java.instrument, java.logging, java.management, java.naming, java.net.http, java.prefs,
+   java.scripting, java.security.jgss, java.sql, java.sql.rowset, java.xml, jdk.charsets, jdk.crypto.ec, jdk.jfr, jdk.localedata, jdk.management,
+   jdk.naming.dns, jdk.net, jdk.unsupported, jdk.zipfs. 스크립트가 이 런타임으로 엔진을 띄워 `/__health` 200을 확인한 뒤에 패키징한다.
+4. `desktop/`에서 electron-builder(`npm run dist`) → `desktop/dist-app/mac-arm64/uplog.app`(약 330MB, 그중 Electron 240MB)과
+   `desktop/dist-app/uplog-0.1.0-arm64.dmg`(약 175MB). arm64만, **ad-hoc 서명**(`identity: "-"`), hardened runtime 끔, 공증 없음.
+   배포하려면 Apple Developer ID 서명·hardened runtime(+ JVM용 `allow-jit`·`allow-unsigned-executable-memory` 엔타이틀먼트)·공증이 필요하다.
+
+**Electron 껍데기** (`desktop/src`, TypeScript → `tsc`, 런타임 의존성 없음. Electron 44.5.1, electron-builder 26.15.3):
+
+- 단일 인스턴스, 127.0.0.1 빈 포트, `crypto.randomBytes(32)` base64url 토큰, `runtime/bin/java -Djava.awt.headless=true -jar engine.jar …`(계약 그대로).
+  엔진 stdout·stderr는 `{data-dir}/logs/desktop.log`(5MB × 4개 돌림). 지난 실행에서 남은 엔진은 `{data-dir}/engine.pid`로 찾아 끝낸다(H2 파일 잠금).
+- `/__health`를 90초까지 기다리고, 실패하면 "다시 시도 · 종료 · 로그 열기" 창. 준비된 뒤 엔진이 죽으면 한 번 다시 띄우고(새 포트·토큰, 창을 새 실행 주소로),
+  또 죽으면 같은 창.
+- 창: `contextIsolation`·`sandbox`·`webSecurity` 켬, `nodeIntegration` 끔, preload 없음, 설치본은 개발자 도구 끔, 권한 요청 모두 거부.
+  엔진 출처 밖으로의 이동·새 창은 막고 http(s)만 기본 브라우저로 연다(tossinvest.com, 토스 문서).
+- User-Agent의 앱 이름을 ASCII(`uplog/…`)로 바꾼다: 엔진의 정적 화면 응답이 ASCII가 아닌 헤더(기본 UA의 "업로그/0.1.0")에 400을 준다.
+- 메뉴바 아이콘(템플릿 이미지): 엔진 상태, 업로그 열기, 지금 수집(main이 토큰을 쿠키로, 같은 출처 Origin으로 `POST /api/connections/toss/sync` → 알림),
+  로그 폴더 열기, 로그인 시 자동 실행(`app.setLoginItemSettings`), 업로그 종료. 창을 닫으면 Dock 아이콘만 숨기고 계속 돈다.
+  종료(⌘Q·메뉴·`osascript -e 'quit app "업로그"'`)는 엔진에 SIGTERM, 15초 안에 안 끝나면 SIGKILL.
+- 번들 이름은 ASCII(`uplog.app`, `CFBundleName=uplog`)이고 보이는 이름 "업로그"는 `ko/en.lproj/InfoPlist.strings`와 `CFBundleDisplayName`으로 준다.
+  Electron 44는 `CFBundleName`으로 Helper 앱("<이름> Helper")을 찾는데, 한글 이름이면 시작하자마자 SIGTRAP으로 죽는다.
 
 ## 실행 계약 (엔진 · 화면 · Electron)
 
@@ -84,3 +108,7 @@ runtime/bin/java -jar engine.jar \
 
 - macOS 위젯(WidgetKit, Swift): 엔진이 앱 그룹 폴더에 `widget.json`(오늘 손익, 이번 달 로그 칸, 연속 기록)을 쓰고 위젯이 읽는다. Xcode가 필요하다.
 - 아이폰: 계산·토스 클라이언트를 TypeScript 패키지로 옮겨 Expo 앱과 맥 앱이 함께 쓴다. 아이폰은 집 와이파이에 있을 때 수집하고, 위젯은 마지막 기록을 보여 준다.
+- 배포: Apple Developer ID 서명 + hardened runtime(JVM 엔타이틀먼트) + 공증(`notarytool`). 그전까지는 Gatekeeper "그래도 열기"가 필요하다.
+- 자동 업데이트 없음(새 dmg로 덮어 설치). 서명 뒤 electron-updater 등을 검토한다.
+- Intel 맥: x64 JDK로 x64 런타임을 jlink해야 한다(jlink는 실행 중인 JDK와 같은 아키텍처의 런타임만 만든다). 지금은 arm64만.
+- 앱(main 프로세스)이 강제로 죽으면 엔진만 남는다: 다음 실행이 `engine.pid`로 정리한다. 엔진이 부모 프로세스를 지켜보다 스스로 끝나게 하는 것도 검토.

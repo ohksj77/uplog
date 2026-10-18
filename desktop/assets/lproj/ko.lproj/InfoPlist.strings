@@ -1,0 +1,3 @@
+/* Finder·Dock·메뉴바에 보이는 이름. Info.plist의 CFBundleName은 ASCII(uplog)로 둔다: Electron이 그 이름으로 Helper 앱을 찾는데, 한글이면 시작하자마자 죽는다. */
+"CFBundleName" = "업로그";
+"CFBundleDisplayName" = "업로그";

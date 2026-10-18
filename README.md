@@ -3,6 +3,20 @@
 일 단위 스냅샷으로 투자 기록을 로그처럼 보여 주는 맥 앱. 설계는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
 API 계약은 기능 A(종목 시뮬레이션) [docs/api/simulation.md](docs/api/simulation.md), 기능 B(내 계좌 뷰) [docs/api/portfolio.md](docs/api/portfolio.md).
 
+## 설치·실행 (사용자)
+
+1. `uplog-0.1.0-arm64.dmg`를 열고 **업로그**를 응용 프로그램 폴더로 끌어 놓는다(Apple Silicon 맥 전용, macOS 12 이상).
+2. 처음 열 때: 아직 Apple 개발자 서명·공증이 없어서 macOS가 "확인되지 않은 개발자" 또는 "손상됨"이라며 막는다.
+   - Finder에서 업로그를 **오른쪽 클릭 → 열기 → 열기**, 또는
+   - 한 번 열어 본 뒤 **시스템 설정 → 개인정보 보호 및 보안 → "그래도 열기"**.
+   - 그래도 "손상되었기 때문에 열 수 없습니다"가 뜨면(다운로드 격리 표시) 터미널에서
+     `xattr -dr com.apple.quarantine /Applications/uplog.app` 후 다시 연다.
+3. 창을 닫아도 앱은 **메뉴바 아이콘**으로 계속 돌며 매일 07:00 수집을 한다. 메뉴바 아이콘: 업로그 열기, 지금 수집,
+   로그 폴더 열기, 로그인 시 자동 실행, 업로그 종료. 완전히 끄려면 메뉴바의 "업로그 종료" 또는 ⌘Q.
+4. 데이터는 `~/Library/Application Support/uplog`(DB `uplog.mv.db`, 로그 `logs/engine.log`·`logs/desktop.log`),
+   토스 키의 마스터키는 macOS 키체인(`uplog` / `master-key`)에 있다. 앱을 지워도 이 폴더와 키체인 항목은 남는다.
+5. **자동 업데이트는 없다.** 새 버전은 새 dmg로 덮어 설치한다(데이터 폴더는 그대로 쓴다).
+
 ## 로컬 실행
 
 업로그는 **서버 없이 맥에서만 도는 앱**이다(토스 Open API 키를 서비스 서버에 두지 않는다). 설계와 Electron·엔진·화면 사이의
@@ -45,6 +59,28 @@ curl -H 'Origin: http://localhost:3000' -H 'Content-Type: application/json' \
 - 테스트·빌드: `./gradlew build` (경고도 오류로 본다: `-Xlint:all -Werror`). 테스트는 `desktop`(+`fake-toss`) 프로필에 메모리 DB를 쓴다.
 - 앱용 엔진: `./gradlew :app:bootJar` → `app/build/libs/app-0.1.0-SNAPSHOT.jar`.
 
+### 맥 앱 빌드 (개발자)
+
+필요한 것: JDK 25(`jdeps`·`jlink`), Node 20+, macOS(Apple Silicon). Xcode·Rust·Apple 개발자 계정은 필요 없다.
+
+```bash
+scripts/build-mac-app.sh
+# 1) web 정적 export(web/out) 2) ./gradlew :app:bootJar 3) jdeps+jlink 런타임(desktop/build/runtime)
+# 4) 그 런타임으로 엔진을 띄워 /__health 200 확인 5) electron-builder → .app·.dmg (arm64, ad-hoc 서명)
+#   → desktop/dist-app/mac-arm64/uplog.app (약 330MB), desktop/dist-app/uplog-0.1.0-arm64.dmg (약 175MB)
+# 이미 만든 단계는 SKIP_WEB=1 SKIP_ENGINE=1 SKIP_RUNTIME=1 로 건너뛴다.
+
+cd desktop && npm ci          # Electron 44.5.1, electron-builder 26.15.3, TypeScript 6.0.3 (모두 개발 의존성)
+npm start                     # 개발 실행: 저장소의 app/build/libs jar, web/out, desktop/build/runtime(없으면 시스템 java)
+```
+
+- 개발 실행·검증용 환경변수: `UPLOG_DATA_DIR`(data-dir 바꾸기, 실제 폴더를 건드리지 않음), `UPLOG_ENGINE_ARGS`(엔진 인자 덧붙이기,
+  예: `--uplog.credential.key-store=file --spring.profiles.active=desktop,fake-toss`), 개발 실행에서만 `UPLOG_JAVA`·`UPLOG_ENGINE_JAR`·
+  `UPLOG_WEB_DIR`·`UPLOG_DEVTOOLS_PORT`(원격 디버깅 포트, 설치본은 무시).
+- 설치본을 임시 폴더로 띄워 보기: `open --env UPLOG_DATA_DIR=/tmp/uplog-try --env UPLOG_ENGINE_ARGS=--uplog.credential.key-store=file desktop/dist-app/mac-arm64/uplog.app`,
+  끄기: `osascript -e 'quit app "업로그"'`.
+- 앱 아이콘·메뉴바 아이콘(자리표시용)은 `cd desktop && npm run icons`로 다시 만든다(외부 의존 없음, `sips`·`iconutil`).
+
 | 모듈 | 내용 |
 |---|---|
 | `core` | `Money`, 통화, 거래일 캘린더 |
@@ -57,6 +93,7 @@ curl -H 'Origin: http://localhost:3000' -H 'Content-Type: application/json' \
 | `broker-toss` | 토스 Open API 클라이언트(토큰 캐시, 그룹별 레이트리밋, 허용 목록), `BrokerPort`·`BrokerVerifier` 구현, `fake-toss` 프로필의 가짜 토스 서버 |
 | `ingest` | 수집 큐·워커, 역산, 매일 07:00(KST) 일일 수집과 놓친 날 따라잡기, 현금흐름 추정, 누락일 기록 |
 | `app` | Spring Boot 진입점(프로필 `desktop` / `fake-toss`), `web-dir` 정적 화면 서빙 |
+| `desktop` | Electron 맥 앱 껍데기(TypeScript): 엔진 띄우기·창·메뉴바 아이콘, jlink 런타임·패키징 스크립트 |
 
 ## 프론트엔드
 
