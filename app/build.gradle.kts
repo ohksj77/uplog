@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":calc-engine"))
     implementation(project(":market-data"))
     implementation(project(":simulation"))
+    implementation(project(":portfolio"))
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")

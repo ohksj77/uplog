@@ -1,0 +1,421 @@
+package com.uplog.app;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.TreeSet;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+/** local 프로필(H2 + 샘플 시세 + 데모 계좌)로 띄워 docs/api/portfolio.md의 JSON 형태와 숫자 불변식을 확인한다. */
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles({"local", "api"})
+class PortfolioApiTest {
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+    private static final String[] INSTRUMENT = {"code", "name", "market", "currency"};
+    private static final String[] TRADE = {"date", "instrument", "side", "quantity", "priceLocal", "fxRate", "amount", "fee", "tax"};
+    private static final String[] PERIOD = {"id", "instrument", "open", "close", "days", "returnRate", "profit", "status"};
+    private static final String[] SALE = {"id", "date", "instrument", "quantity", "priceLocal", "fxRate", "amount", "realizedProfit",
+        "priceNowLocal", "changeSinceSale", "changeAfter", "verdict", "afterEffect", "series"};
+    private static final String[] FX_ITEM = {"instrument", "quantity", "avgCostLocal", "avgFxRate", "priceLocal", "fxRate",
+        "priceEffect", "fxEffect", "profit"};
+    private static final List<String> CODES = List.of("S00001", "S00002", "S00003", "S00004", "SMPT", "SMPC", "SMPS", "SMPE");
+
+    @Autowired
+    private MockMvc mvc;
+
+    private JsonNode fetch(String url) throws Exception {
+        return JSON.readTree(mvc.perform(get(url)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    }
+
+    @Test
+    void 요약은_데모_계좌와_평가금_순입금_손익을_준다() throws Exception {
+        JsonNode s = fetch("/api/portfolio/summary");
+        assertKeys(s, "account", "asOf", "totalValue", "netDeposits", "profit", "twr", "todayPnl", "todayReturn");
+        assertKeys(s.get("account"), "name", "broker", "sample", "firstDate", "lastDate");
+        assertThat(s.get("account").get("name").asString()).isEqualTo("데모 계좌");
+        assertThat(s.get("account").get("broker").asString()).isEqualTo("TOSS");
+        assertThat(s.get("account").get("sample").asBoolean()).isTrue();
+        assertIntegral(s, "totalValue", "netDeposits", "profit", "todayPnl");
+        assertThat(s.get("profit").asLong()).isEqualTo(s.get("totalValue").asLong() - s.get("netDeposits").asLong());
+        assertThat(s.get("totalValue").asLong()).isPositive();
+        assertThat(s.get("asOf").asString()).isEqualTo(s.get("account").get("lastDate").asString());
+    }
+
+    @Test
+    void 로그는_거래일마다_한_칸이고_통계는_칸의_부호와_맞는다() throws Exception {
+        JsonNode first = fetch("/api/portfolio/log");
+        List<Integer> years = new ArrayList<>();
+        first.get("availableYears").forEach(y -> years.add(y.asInt()));
+        assertThat(years).hasSizeGreaterThanOrEqualTo(2).isSorted();
+        assertThat(first.get("year").asInt()).isEqualTo(years.getLast());
+        int missing = 0;
+        for (int year : years) {
+            JsonNode log = fetch("/api/portfolio/log?year=" + year);
+            assertKeys(log, "year", "availableYears", "from", "to", "days", "stats", "streaks");
+            assertKeys(log.get("stats"), "gainDays", "lossDays", "flatDays", "totalPnl", "bestDay", "worstDay");
+            assertKeys(log.get("streaks"), "gain", "loss");
+            assertKeys(log.get("streaks").get("gain"), "longest", "current");
+            assertKeys(log.get("streaks").get("loss"), "longest", "current");
+            int gain = 0;
+            int loss = 0;
+            int flat = 0;
+            long total = 0;
+            long best = Long.MIN_VALUE;
+            String prev = "";
+            Long prevValue = null;
+            for (JsonNode d : log.get("days")) {
+                assertKeys(d, "date", "value", "netCashFlow", "pnl", "dailyReturn", "source");
+                assertIntegral(d, "value", "netCashFlow", "pnl");
+                assertThat(d.get("date").asString()).startsWith(String.valueOf(year)).isGreaterThan(prev);
+                prev = d.get("date").asString();
+                String source = d.get("source").asString();
+                assertThat(source).isIn("COLLECTED", "BACKFILLED", "MISSING");
+                long pnl = d.get("pnl").asLong();
+                if (source.equals("MISSING")) {
+                    missing++;
+                    assertThat(d.get("value").asLong()).isZero();
+                    assertThat(pnl).isZero();
+                    continue;
+                }
+                if (prevValue != null) { // 반올림 오차 안에서 pnl = value − netCashFlow − 직전 기록일 value
+                    assertThat(d.get("value").asLong() - d.get("netCashFlow").asLong() - prevValue - pnl).isBetween(-2L, 2L);
+                }
+                prevValue = d.get("value").asLong();
+                if (pnl > 0) {
+                    gain++;
+                } else if (pnl < 0) {
+                    loss++;
+                } else {
+                    flat++;
+                }
+                total += pnl;
+                best = Math.max(best, pnl);
+            }
+            JsonNode stats = log.get("stats");
+            assertThat(stats.get("gainDays").asInt()).isEqualTo(gain);
+            assertThat(stats.get("lossDays").asInt()).isEqualTo(loss);
+            assertThat(stats.get("flatDays").asInt()).isEqualTo(flat);
+            assertThat(stats.get("totalPnl").asLong()).isEqualTo(total);
+            assertThat(stats.get("bestDay").get("pnl").asLong()).isEqualTo(best);
+            assertKeys(stats.get("worstDay"), "date", "pnl");
+            assertThat(log.get("from").asString()).isEqualTo(log.get("days").get(0).get("date").asString());
+        }
+        assertThat(missing).isEqualTo(2);
+
+        mvc.perform(get("/api/portfolio/log").param("year", "1999"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("INVALID_PARAMETER")))
+                .andExpect(jsonPath("$.message", containsString("year")));
+        mvc.perform(get("/api/portfolio/log").param("year", "abc")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 보유_종목은_평가금액_큰_순이다() throws Exception {
+        JsonNode holdings = fetch("/api/portfolio/holdings");
+        assertThat(holdings.size()).isGreaterThanOrEqualTo(3);
+        long prev = Long.MAX_VALUE;
+        double weights = 0;
+        for (JsonNode h : holdings) {
+            assertKeys(h, "instrument", "quantity", "avgCostLocal", "priceLocal", "fxRate", "value", "profit", "returnRate", "weight");
+            assertKeys(h.get("instrument"), INSTRUMENT);
+            assertIntegral(h, "value", "profit");
+            assertThat(h.get("value").asLong()).isLessThanOrEqualTo(prev);
+            prev = h.get("value").asLong();
+            weights += h.get("weight").asDouble();
+            if (h.get("instrument").get("currency").asString().equals("KRW")) {
+                assertThat(h.get("fxRate").asDouble()).isEqualTo(1.0);
+                assertThat(h.get("instrument").get("market").asString()).isEqualTo("KR");
+            }
+        }
+        assertThat(weights).isBetween(0.0, 1.0);
+    }
+
+    @Test
+    void 하루_상세의_종목_기여_배당_비용을_합하면_그날_손익이다() throws Exception {
+        JsonNode log = fetch("/api/portfolio/log");
+        Set<String> tradeDays = new TreeSet<>();
+        for (String code : CODES) {
+            fetch("/api/portfolio/holdings/" + code).get("trades").forEach(t -> tradeDays.add(t.get("date").asString()));
+        }
+        List<String> dates = new ArrayList<>();
+        String missingDay = null;
+        for (JsonNode d : log.get("days")) {
+            if (d.get("source").asString().equals("MISSING")) {
+                missingDay = d.get("date").asString();
+            } else {
+                dates.add(d.get("date").asString());
+            }
+        }
+        Set<String> checked = new TreeSet<>(dates.subList(dates.size() - 15, dates.size())); // 수집 실패 다음 날 포함
+        tradeDays.stream().filter(d -> d.startsWith(log.get("year").asString())).forEach(checked::add);
+        checked.add(fetch("/api/portfolio/summary").get("account").get("firstDate").asString());
+
+        for (String date : checked) {
+            JsonNode day = fetch("/api/portfolio/days/" + date);
+            assertKeys(day, "date", "prevDate", "nextDate", "value", "netCashFlow", "pnl", "dailyReturn", "contributions", "trades", "cashFlows");
+            assertIntegral(day, "value", "netCashFlow", "pnl");
+            long sum = 0;
+            for (JsonNode c : day.get("contributions")) {
+                assertKeys(c, "instrument", "pnl", "dailyReturn", "weight");
+                sum += c.get("pnl").asLong();
+            }
+            long flows = 0;
+            for (JsonNode f : day.get("cashFlows")) {
+                assertKeys(f, "type", "amount", "instrument");
+                assertThat(f.get("amount").asLong()).isPositive();
+                switch (f.get("type").asString()) {
+                    case "DIVIDEND" -> {
+                        sum += f.get("amount").asLong();
+                        assertKeys(f.get("instrument"), INSTRUMENT);
+                    }
+                    case "DEPOSIT" -> flows += f.get("amount").asLong();
+                    case "WITHDRAWAL" -> flows -= f.get("amount").asLong();
+                    default -> throw new AssertionError(f);
+                }
+            }
+            for (JsonNode t : day.get("trades")) {
+                assertKeys(t, TRADE);
+                sum -= t.get("fee").asLong() + t.get("tax").asLong();
+            }
+            int terms = day.get("contributions").size() + 2 * day.get("trades").size() + day.get("cashFlows").size();
+            assertThat(Math.abs(sum - day.get("pnl").asLong())).as(date).isLessThanOrEqualTo(terms + 1L);
+            assertThat(flows).isEqualTo(day.get("netCashFlow").asLong());
+            JsonNode prev = day.get("prevDate");
+            if (!prev.isNull()) {
+                assertThat(prev.asString()).isLessThan(date).isNotEqualTo(missingDay);
+            }
+        }
+
+        mvc.perform(get("/api/portfolio/days/" + missingDay))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", is("DATE_NOT_FOUND")));
+        mvc.perform(get("/api/portfolio/days/2026-10-17")).andExpect(jsonPath("$.code", is("DATE_NOT_FOUND")));
+        mvc.perform(get("/api/portfolio/days/2026-13-01"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("INVALID_PARAMETER")));
+    }
+
+    @Test
+    void 종목_상세는_보유분_가격_체결_포지션_매도_환율을_준다() throws Exception {
+        Set<String> held = new TreeSet<>();
+        fetch("/api/portfolio/holdings").forEach(h -> held.add(h.get("instrument").get("code").asString()));
+        for (String code : CODES) {
+            JsonNode h = fetch("/api/portfolio/holdings/" + code.toLowerCase(Locale.ROOT));
+            assertKeys(h, "instrument", "position", "realizedProfit", "dividends", "prices", "trades", "periods", "sales", "fx");
+            assertThat(h.get("instrument").get("code").asString()).isEqualTo(code);
+            assertIntegral(h, "realizedProfit", "dividends");
+            boolean usd = h.get("instrument").get("currency").asString().equals("USD");
+            if (held.contains(code)) {
+                assertKeys(h.get("position"), "quantity", "avgCostLocal", "priceLocal", "fxRate", "value", "profit", "returnRate");
+            } else {
+                assertThat(h.get("position").isNull()).isTrue();
+            }
+            assertThat(h.get("fx").isNull()).isEqualTo(!(usd && held.contains(code)));
+            assertThat(h.get("prices").size()).isGreaterThan(60);
+            assertThat(h.get("prices").get(0).get("date").asString())
+                    .isLessThan(h.get("trades").get(0).get("date").asString());
+            assertThat(h.get("periods").size()).isPositive();
+            h.get("periods").forEach(p -> assertKeys(p, PERIOD));
+            h.get("sales").forEach(s -> assertKeys(s, SALE));
+        }
+        mvc.perform(get("/api/portfolio/holdings/NOPE99"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", is("INSTRUMENT_NOT_FOUND")));
+    }
+
+    @Test
+    void 매도_채점_요약은_매도별_판정과_효과의_합이다() throws Exception {
+        for (int horizon : List.of(5, 20, 60)) {
+            JsonNode r = fetch("/api/portfolio/insights/sales?horizon=" + horizon);
+            assertKeys(r, "horizon", "summary", "sales");
+            assertKeys(r.get("summary"), "sales", "judged", "good", "winRate", "avoidedLoss", "missedGain");
+            int judged = 0;
+            int good = 0;
+            long avoided = 0;
+            long missed = 0;
+            String prev = "9999";
+            for (JsonNode s : r.get("sales")) {
+                assertKeys(s, SALE);
+                assertKeys(s.get("changeAfter"), "d5", "d20", "d60");
+                assertIntegral(s, "amount", "realizedProfit", "afterEffect");
+                assertThat(s.get("date").asString()).isLessThanOrEqualTo(prev); // 최근 매도 먼저
+                prev = s.get("date").asString();
+                switch (s.get("verdict").asString()) {
+                    case "GOOD" -> {
+                        judged++;
+                        good++;
+                        avoided += s.get("afterEffect").asLong();
+                        assertThat(s.get("afterEffect").asLong()).isNotNegative();
+                    }
+                    case "BAD" -> {
+                        judged++;
+                        missed += Math.abs(s.get("afterEffect").asLong());
+                    }
+                    case "PENDING" -> {
+                        assertThat(s.get("afterEffect").asLong()).isZero();
+                        assertThat(s.get("changeAfter").get("d" + horizon).isNull()).isTrue();
+                    }
+                    default -> throw new AssertionError(s);
+                }
+                assertThat(s.get("series").get(0).get("date").asString()).isLessThan(s.get("date").asString());
+            }
+            JsonNode sum = r.get("summary");
+            assertThat(sum.get("sales").asInt()).isEqualTo(r.get("sales").size()).isGreaterThan(10);
+            assertThat(sum.get("judged").asInt()).isEqualTo(judged);
+            assertThat(sum.get("good").asInt()).isEqualTo(good);
+            assertThat(sum.get("avoidedLoss").asLong()).isEqualTo(avoided);
+            assertThat(sum.get("missedGain").asLong()).isEqualTo(missed);
+        }
+        mvc.perform(get("/api/portfolio/insights/sales").param("horizon", "7"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("horizon")));
+    }
+
+    @Test
+    void 그림자_계좌는_같은_입출금을_지수에_넣은_결과다() throws Exception {
+        JsonNode summary = fetch("/api/portfolio/summary");
+        for (String benchmark : List.of("SPX", "KOSPI200")) {
+            JsonNode r = fetch("/api/portfolio/insights/shadow?benchmark=" + benchmark);
+            assertKeys(r, "benchmarks", "benchmark", "series", "summary");
+            assertThat(r.get("benchmark").asString()).isEqualTo(benchmark);
+            assertThat(r.get("benchmarks").size()).isEqualTo(2);
+            r.get("benchmarks").forEach(b -> assertKeys(b, "code", "name"));
+            assertKeys(r.get("summary"), "actual", "shadow", "difference", "actualTwr", "shadowTwr");
+            JsonNode first = r.get("series").get(0);
+            assertKeys(first, "date", "actual", "shadow", "netDeposits");
+            assertThat(first.get("shadow").asLong()).isEqualTo(first.get("netDeposits").asLong());
+            JsonNode s = r.get("summary");
+            assertThat(s.get("difference").asLong()).isEqualTo(s.get("actual").asLong() - s.get("shadow").asLong());
+            assertThat(s.get("actual").asLong()).isEqualTo(summary.get("totalValue").asLong());
+            assertThat(s.get("actualTwr").asDouble()).isEqualTo(summary.get("twr").asDouble());
+            assertThat(s.get("shadow").asLong()).isPositive();
+        }
+        mvc.perform(get("/api/portfolio/insights/shadow").param("benchmark", "NASDAQ")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 폭포수_항목의_합은_기간_손익과_정확히_같다() throws Exception {
+        long profit = fetch("/api/portfolio/summary").get("profit").asLong();
+        for (String period : List.of("1M", "3M", "YTD", "1Y", "ALL")) {
+            JsonNode r = fetch("/api/portfolio/insights/waterfall?period=" + period);
+            assertKeys(r, "period", "from", "to", "startValue", "netCashFlow", "endValue", "items", "total");
+            long sum = 0;
+            List<String> kinds = new ArrayList<>();
+            for (JsonNode item : r.get("items")) {
+                assertKeys(item, "kind", "label", "instrument", "amount");
+                assertIntegral(item, "amount");
+                kinds.add(item.get("kind").asString());
+                assertThat(item.get("instrument").isNull()).isEqualTo(!item.get("kind").asString().equals("INSTRUMENT"));
+                sum += item.get("amount").asLong();
+            }
+            long total = r.get("total").asLong();
+            assertThat(sum).as(period).isEqualTo(total);
+            assertThat(total).isEqualTo(r.get("endValue").asLong() - r.get("startValue").asLong() - r.get("netCashFlow").asLong());
+            assertThat(kinds).contains("DIVIDEND", "FEE", "TAX", "FX");
+            r.get("items").forEach(item -> {
+                if (item.get("kind").asString().equals("OTHER")) {
+                    assertThat(item.get("amount").asLong()).isNotZero(); // 0이면 생략
+                }
+            });
+            if (period.equals("ALL")) {
+                assertThat(total).isEqualTo(profit);
+            }
+        }
+        mvc.perform(get("/api/portfolio/insights/waterfall").param("period", "2Y")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 보유_기간은_open_순이고_버킷은_늘_네_개다() throws Exception {
+        JsonNode r = fetch("/api/portfolio/insights/holding-periods");
+        assertKeys(r, "periods", "buckets");
+        String prev = "";
+        int open = 0;
+        for (JsonNode p : r.get("periods")) {
+            assertKeys(p, PERIOD);
+            assertThat(p.get("open").asString()).isGreaterThanOrEqualTo(prev);
+            prev = p.get("open").asString();
+            boolean isOpen = p.get("status").asString().equals("OPEN");
+            assertThat(p.get("close").isNull()).isEqualTo(isOpen);
+            open += isOpen ? 1 : 0;
+        }
+        assertThat(open).isPositive();
+        List<String> keys = new ArrayList<>();
+        int count = 0;
+        for (JsonNode b : r.get("buckets")) {
+            assertKeys(b, "key", "label", "count", "winRate", "avgReturn", "profit");
+            keys.add(b.get("key").asString());
+            count += b.get("count").asInt();
+        }
+        assertThat(keys).containsExactly("SHORT", "SWING", "MID", "LONG");
+        assertThat(count).isEqualTo(r.get("periods").size());
+    }
+
+    @Test
+    void 환율_분해는_주가_효과와_환율_효과의_합이_손익이다() throws Exception {
+        JsonNode r = fetch("/api/portfolio/insights/fx");
+        assertKeys(r, "asOf", "items", "total");
+        assertKeys(r.get("total"), "priceEffect", "fxEffect", "profit");
+        assertThat(r.get("items").size()).isPositive();
+        for (JsonNode i : r.get("items")) {
+            assertKeys(i, FX_ITEM);
+            assertThat(i.get("instrument").get("currency").asString()).isEqualTo("USD");
+            assertThat(i.get("priceEffect").asLong() + i.get("fxEffect").asLong()).isEqualTo(i.get("profit").asLong());
+        }
+        JsonNode t = r.get("total");
+        assertThat(t.get("priceEffect").asLong() + t.get("fxEffect").asLong()).isEqualTo(t.get("profit").asLong());
+    }
+
+    @Test
+    void 수중_차트는_0_이하이고_구간은_깊은_순이다() throws Exception {
+        JsonNode r = fetch("/api/portfolio/insights/underwater");
+        assertKeys(r, "series", "episodes", "current");
+        assertKeys(r.get("current"), "drawdown", "peak", "days", "deepestPast", "deeperThanPast");
+        for (JsonNode p : r.get("series")) {
+            assertKeys(p, "date", "drawdown", "drawdownAmount");
+            assertThat(p.get("drawdown").asDouble()).isLessThanOrEqualTo(0.0);
+            assertThat(p.get("drawdownAmount").asLong()).isLessThanOrEqualTo(0L);
+        }
+        double prev = -1.0;
+        for (JsonNode e : r.get("episodes")) {
+            assertKeys(e, "peak", "trough", "recovered", "depth", "daysToTrough", "daysToRecover");
+            assertThat(e.get("depth").asDouble()).isGreaterThanOrEqualTo(prev).isLessThan(0.0);
+            prev = e.get("depth").asDouble();
+            assertThat(e.get("daysToRecover").isNull()).isEqualTo(e.get("recovered").isNull());
+        }
+        JsonNode last = r.get("series").get(r.get("series").size() - 1);
+        assertThat(r.get("current").get("drawdown").asDouble()).isEqualTo(last.get("drawdown").asDouble());
+    }
+
+    static void assertIntegral(JsonNode node, String... fields) {
+        for (String f : fields) {
+            assertThat(node.get(f).isIntegralNumber()).as(f + " in " + node).isTrue();
+        }
+    }
+
+    static void assertKeys(JsonNode node, String... keys) {
+        Set<String> actual = new TreeSet<>();
+        for (Iterator<String> it = node.propertyNames().iterator(); it.hasNext(); ) {
+            actual.add(it.next());
+        }
+        assertThat(actual).as(node.toString().substring(0, Math.min(80, node.toString().length())))
+                .containsExactlyInAnyOrder(keys);
+    }
+}

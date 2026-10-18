@@ -17,7 +17,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** instrument·daily_price 접근. JPA 없이 JdbcClient로 쓴다. SQL은 PostgreSQL과 H2(PostgreSQL 모드) 공통 문법만 쓴다. */
+/** instrument·daily_price·fx_rate 접근. JPA 없이 JdbcClient로 쓴다. SQL은 PostgreSQL과 H2(PostgreSQL 모드) 공통 문법만 쓴다. */
 @Component
 public class MarketDataRepository {
 
@@ -38,13 +38,13 @@ public class MarketDataRepository {
     }
 
     /**
-     * 이름 또는 종목코드 부분 일치(대소문자 무시)로 시세가 있는 ETF를 찾는다. 이름순.
-     * query가 비면 이름순 상위 limit개.
+     * 이름 또는 종목코드 부분 일치(대소문자 무시)로 시세가 있는 원화 ETF를 찾는다. 이름순.
+     * query가 비면 이름순 상위 limit개. 기능 A v1은 원화 ETF만 다루므로 해외 ETF는 빼고 찾는다.
      */
     public List<ListedInstrument> searchEtfs(String query, int limit) {
         String pattern = "%" + escapeLike(query == null ? "" : query.strip().toLowerCase(Locale.ROOT)) + "%";
         return jdbc.sql(LISTED_SELECT + """
-                        WHERE i.type = 'ETF'
+                        WHERE i.type = 'ETF' AND i.currency = 'KRW'
                           AND (LOWER(i.name) LIKE :pattern ESCAPE '\\' OR LOWER(i.code) LIKE :pattern ESCAPE '\\')
                           AND EXISTS (SELECT 1 FROM daily_price p WHERE p.instrument_id = i.id)
                         ORDER BY i.name, i.code
@@ -86,6 +86,45 @@ public class MarketDataRepository {
                     closes.put(rs.getDate("date").toLocalDate(), rs.getBigDecimal("close"));
                 });
         return closes.isEmpty() ? Optional.empty() : Optional.of(new PriceSeries(closes));
+    }
+
+    /** 환율 pair(예: USDKRW)의 [from, to] 구간. 행이 없으면 empty. */
+    public Optional<PriceSeries> loadFxRates(String pair, LocalDate from, LocalDate to) {
+        Map<LocalDate, BigDecimal> rates = new TreeMap<>();
+        jdbc.sql("""
+                        SELECT date, rate FROM fx_rate
+                        WHERE pair = :pair AND date BETWEEN :from AND :to
+                        ORDER BY date
+                        """)
+                .param("pair", pair)
+                .param("from", Date.valueOf(from))
+                .param("to", Date.valueOf(to))
+                .query(rs -> {
+                    rates.put(rs.getDate("date").toLocalDate(), rs.getBigDecimal("rate"));
+                });
+        return rates.isEmpty() ? Optional.empty() : Optional.of(new PriceSeries(rates));
+    }
+
+    public Optional<PriceRange> fxRange(String pair) {
+        return jdbc.sql("SELECT MIN(date) AS first_date, MAX(date) AS last_date FROM fx_rate WHERE pair = :pair")
+                .param("pair", pair)
+                .query((rs, n) -> range(rs))
+                .optional()
+                .flatMap(r -> r);
+    }
+
+    /** 비어 있는 구간에 한꺼번에 넣는다(시드·백필용). 이미 있는 날짜면 PK 위반으로 실패한다. close를 환율로 쓴다. */
+    @Transactional
+    public void insertFxRates(String pair, List<DailyPrice> rates) {
+        jdbcTemplate.batchUpdate(
+                "INSERT INTO fx_rate (pair, date, rate) VALUES (?, ?, ?)",
+                rates,
+                500,
+                (ps, r) -> {
+                    ps.setString(1, pair);
+                    ps.setDate(2, Date.valueOf(r.date()));
+                    ps.setBigDecimal(3, r.close());
+                });
     }
 
     /** 코드가 같으면 이름만 갱신하고 id를 돌려준다. */

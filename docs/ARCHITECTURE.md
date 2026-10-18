@@ -37,7 +37,7 @@
 | `market-data` | 기능 A·벤치마크용 시세. 토스 시세와 물리적으로 분리(재배포 리스크) | MVP |
 | `ingest` | 장 마감 후 유저별 수집 잡, 가입 전 기간 역산(backfill) | MVP |
 | `simulation` | 기능 A API, 파라미터 해시 캐시 | MVP |
-| `portfolio-view` | 로그·그래프·일자 상세 조회 (읽기 모델) | MVP |
+| `portfolio` (계획상 `portfolio-view`) | 기능 B API(로그·보유·일자 상세·인사이트 6종), 원시 테이블, `BrokerPort`, 로컬 데모 계좌. 계산은 `calc-engine`의 `com.uplog.calc.portfolio` | MVP |
 | `share` | 공유 카드 이미지(SVG → PNG), 공유 링크 | MVP |
 | `insight` | 기능 C(기여도, 드로다운, 환율 분리, 습관 등) | 2 |
 | `notify` | 주간 리캡, 의미 있는 순간 알림 | 2 |
@@ -45,7 +45,10 @@
 
 기능 A(시뮬레이션)와 기능 B(내 계좌)는 같은 `calc-engine`을 쓴다. 적립식 시뮬레이션은 "가상의 현금흐름을 벤치마크에 리플레이"한 것이고, 벤치마크 비교는 "내 실제 현금흐름을 리플레이"한 것이다.
 
-모듈은 구현할 때 하나씩 추가한다. 현재 저장소에는 `core`, `calc-engine`, `market-data`, `simulation`, `app`(백엔드)과 `web`(Next.js 프론트엔드)이 있다.
+모듈은 구현할 때 하나씩 추가한다. 현재 저장소에는 `core`, `calc-engine`, `market-data`, `simulation`, `portfolio`, `app`(백엔드)과 `web`(Next.js 프론트엔드)이 있다.
+토스 OpenAPI가 확인 전이라 `broker`·`ingest`는 아직 없고, `portfolio`의 `BrokerPort`(구현 없음)와 `local` 프로필의 합성 데모 계좌로 기능 B를 띄운다.
+일별 계좌 값은 체결·입출금·배당을 시세에 리플레이(`PortfolioReplay`)해 만들고, 이 함수가 그대로 가입 전 기간 역산(backfill)이 된다.
+Flyway 버전은 모듈별 구간을 쓴다: `market-data` V1–V99, `portfolio` V100–V199(`out-of-order` 켬).
 
 ## 3. 데이터 모델
 

@@ -9,8 +9,10 @@ spring:
     username: ${UPLOG_DB_USERNAME:uplog}
     password: ${UPLOG_DB_PASSWORD:uplog}
   flyway:
-    # 마이그레이션은 각 모듈의 db/migration(예: market-data)에 둔다.
+    # 마이그레이션은 각 모듈의 db/migration에 둔다. 버전은 모듈별 구간: market-data V1–V99, portfolio V100–V199.
+    # 앞 구간 모듈이 나중에 새 버전을 추가해도 적용되도록 out-of-order를 켠다.
     locations: classpath:db/migration
+    out-of-order: true
 
 management:
   endpoints:
@@ -33,7 +35,7 @@ spring:
     web-application-type: none
 
 ---
-# Docker 없이 띄우는 개발용 프로필: H2(PostgreSQL 모드) 메모리 DB + 합성 샘플 ETF 4종.
+# Docker 없이 띄우는 개발용 프로필: H2(PostgreSQL 모드) 메모리 DB + 합성 샘플 ETF 4종 + 기능 B 샘플 종목·지수·환율과 데모 계좌.
 # ./gradlew :app:bootRun --args='--spring.profiles.active=local,api'
 spring:
   config:

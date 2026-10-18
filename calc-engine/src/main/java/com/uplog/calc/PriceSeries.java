@@ -47,6 +47,37 @@ public final class PriceSeries {
         return close;
     }
 
+    /** date가 거래일이면 그날 종가, 아니면 직전 거래일 종가(휴장일 평가용). 첫 시세 전이면 empty. */
+    public Optional<BigDecimal> closeOnOrBefore(LocalDate date) {
+        Map.Entry<LocalDate, BigDecimal> entry = closes.floorEntry(date);
+        return entry == null ? Optional.empty() : Optional.of(entry.getValue());
+    }
+
+    /** date(포함) 뒤로 n번째 거래일. n = 0이면 date 이후 첫 거래일. 시세 범위를 넘으면 empty. */
+    public Optional<LocalDate> nthTradingDayFrom(LocalDate date, int n) {
+        LocalDate day = closes.ceilingKey(date);
+        for (int i = 0; i < n && day != null; i++) {
+            day = closes.higherKey(day);
+        }
+        return Optional.ofNullable(day);
+    }
+
+    /** date(휴장일이면 직전 거래일)에서 n거래일 앞의 날. 시세가 그만큼 없으면 첫 거래일. */
+    public LocalDate nthTradingDayBefore(LocalDate date, int n) {
+        LocalDate day = closes.floorKey(date);
+        if (day == null) {
+            return closes.firstKey();
+        }
+        for (int i = 0; i < n; i++) {
+            LocalDate lower = closes.lowerKey(day);
+            if (lower == null) {
+                break;
+            }
+            day = lower;
+        }
+        return day;
+    }
+
     /** [from, to] 구간의 종가, 날짜 오름차순. */
     public NavigableMap<LocalDate, BigDecimal> range(LocalDate from, LocalDate to) {
         return closes.subMap(from, true, to, true);

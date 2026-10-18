@@ -3,6 +3,7 @@ package com.uplog.simulation;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.uplog.calc.PriceSeries;
+import com.uplog.core.CurrencyCode;
 import com.uplog.marketdata.Instrument;
 import com.uplog.marketdata.InstrumentType;
 import com.uplog.marketdata.ListedInstrument;
@@ -61,7 +62,7 @@ public class SimulationService {
         List<Selected> selected = new ArrayList<>();
         for (String code : query.etfs()) {
             ListedInstrument listed = repository.findByCode(code)
-                    .filter(l -> l.instrument().type() == InstrumentType.ETF)
+                    .filter(l -> l.instrument().type() == InstrumentType.ETF && l.instrument().currency() == CurrencyCode.KRW)
                     .orElseThrow(() -> new SimulationException(ErrorCode.ETF_NOT_FOUND, "ETF를 찾을 수 없습니다: " + code));
             PriceRange range = listed.range()
                     .orElseThrow(() -> new SimulationException(

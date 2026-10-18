@@ -37,10 +37,11 @@ class SimulationApiTest {
 
     @Test
     void ETF_목록은_이름순이고_샘플_표시와_시세_구간을_준다() throws Exception {
+        // 기능 A용 SAMPLE01–04 + 기능 B 데모용 원화 ETF S00003(달러 ETF SMPS는 원화가 아니라 빠진다)
         mvc.perform(get("/api/etfs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(4)))
-                .andExpect(jsonPath("$[*].code", everyItem(matchesPattern("SAMPLE0[1-4]"))))
+                .andExpect(jsonPath("$", hasSize(5)))
+                .andExpect(jsonPath("$[*].code", everyItem(matchesPattern("SAMPLE0[1-4]|S00003"))))
                 .andExpect(jsonPath("$[*].name", everyItem(matchesPattern("샘플 .*"))))
                 .andExpect(jsonPath("$[*].currency", everyItem(is("KRW"))))
                 .andExpect(jsonPath("$[*].sample", everyItem(is(true))))
