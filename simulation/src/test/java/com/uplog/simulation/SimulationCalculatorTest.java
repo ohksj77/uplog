@@ -44,6 +44,9 @@ class SimulationCalculatorTest {
         assertThat(lump.profit()).isEqualTo(lump.finalValue() - lump.invested());
         assertThat(lump.totalReturn()).isCloseTo(-0.2, within(1e-9));
         assertThat(pair.lumpSum().pain().maxDrawdown().rate()).isCloseTo(-0.5, within(1e-12));
+        // 99,999원이 반토막: 평가손익 0 → −49,999.5 → 반올림 −50,000
+        assertThat(pair.lumpSum().pain().maxDrawdownAmount().amount()).isEqualTo(-50_000);
+        assertThat(pair.lumpSum().pain().worstDayAmount().pnl()).isEqualTo(-50_000);
         assertThat(pair.lumpSum().pain().underwater()).isNotNull()
                 .satisfies(u -> assertThat(u.recovered()).isFalse());
 

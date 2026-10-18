@@ -65,8 +65,10 @@
   },
   "pain": {
     "maxDrawdown": { "rate": -0.183, "peak": "2026-03-04", "trough": "2026-04-09" },
+    "maxDrawdownAmount": { "amount": -1830000, "peak": "2026-03-04", "trough": "2026-04-09" },
     "underwater":  { "start": "2026-03-20", "end": "2026-06-11", "recovered": true, "days": 83 },
-    "worstDay":    { "date": "2026-04-07", "dailyReturn": -0.052 }
+    "worstDay":    { "date": "2026-04-07", "dailyReturn": -0.052 },
+    "worstDayAmount": { "date": "2026-04-07", "pnl": -612000 }
   },
   "streaks": {
     "gain": { "longest": { "length": 7, "start": "2026-01-05", "end": "2026-01-13" }, "current": null },
@@ -83,6 +85,9 @@
 }
 ```
 
+- `pain`의 하락 폭과 가장 아팠던 날은 두 기준. 화면에서 사용자가 고른다.
+  - 수익률 기준 `maxDrawdown`, `worstDay`: TWR(입출금 제외). 같은 ETF면 거치식·적립식이 같다.
+  - 금액 기준 `maxDrawdownAmount`(평가손익 고점 대비 감소액, 원, 0 이하), `worstDayAmount`(하루 손익 = 평가금액 − 그날 현금흐름 − 전날 평가금액, 원). 방식마다 실제로 잃은 돈이 다르다.
 - `pain.underwater`: 평가금액이 원금 아래로 내려간 적이 없으면 `null`. `recovered: false`면 `end` = 마지막 날.
 - `streaks`: 연속 기록. 기록이 없으면 `longest`가 `null`, 마지막 날까지 이어지는 연속이 없으면 `current`가 `null`.
   - `gain` / `loss`: 그날 수익률(`dailyReturn`)이 0보다 큰 / 작은 거래일이 이어진 기록(로그 "일별 손익" 뷰의 빨간 / 파란 칸). 0%인 날은 연속을 끊는다.

@@ -122,6 +122,9 @@ function replay(days: Date[], closes: number[], buys: Map<number, number>, unit:
   let peak = { index: 1, date: iso(days[first]) };
   let maxDrawdown = { rate: 0, peak: iso(days[first]), trough: iso(days[first]) };
   let worstDay = { date: iso(days[first]), dailyReturn: 0 };
+  let peakProfit = { amount: 0, date: iso(days[first]) };
+  let maxDrawdownAmount = { amount: 0, peak: iso(days[first]), trough: iso(days[first]) };
+  let worstDayAmount: { date: IsoDate; pnl: number } | null = null;
   let underwaterStart: IsoDate | null = null;
   let underwater: SimulationResult["pain"]["underwater"] = null;
   const out: SimulationDay[] = [];
@@ -140,6 +143,13 @@ function replay(days: Date[], closes: number[], buys: Map<number, number>, unit:
     const dd = index / peak.index - 1;
     if (dd < maxDrawdown.rate) maxDrawdown = { rate: dd, peak: peak.date, trough: date };
     if (r < worstDay.dailyReturn) worstDay = { date, dailyReturn: r };
+    const profit = value - invested;
+    if (profit > peakProfit.amount) peakProfit = { amount: profit, date };
+    if (profit - peakProfit.amount < maxDrawdownAmount.amount) {
+      maxDrawdownAmount = { amount: Math.round(profit - peakProfit.amount), peak: peakProfit.date, trough: date };
+    }
+    const pnl = Math.round(value - cf - prevValue);
+    if (!worstDayAmount || pnl < worstDayAmount.pnl) worstDayAmount = { date, pnl };
     const under = value < invested;
     if (under && !underwaterStart) underwaterStart = date;
     if (!under && underwaterStart) {
@@ -167,7 +177,7 @@ function replay(days: Date[], closes: number[], buys: Map<number, number>, unit:
       twr: index - 1,
       annualizedTwr: span > 0 ? index ** (365 / span) - 1 : 0,
     },
-    pain: { maxDrawdown, underwater, worstDay },
+    pain: { maxDrawdown, maxDrawdownAmount, underwater, worstDay, worstDayAmount: worstDayAmount! },
     streaks: {
       gain: runs(out, (d) => d.dailyReturn > 0, (d) => d.date, (d) => d.date),
       loss: runs(out, (d) => d.dailyReturn < 0, (d) => d.date, (d) => d.date),

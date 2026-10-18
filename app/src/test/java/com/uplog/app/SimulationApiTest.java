@@ -92,7 +92,11 @@ class SimulationApiTest {
                 assertKeys(sim.get("streaks").get("gain"), "longest", "current");
                 assertKeys(sim.get("streaks").get("gain").get("longest"), "length", "start", "end");
                 assertKeys(sim.get("summary"), "finalValue", "invested", "profit", "totalReturn", "twr", "annualizedTwr");
-                assertKeys(sim.get("pain"), "maxDrawdown", "underwater", "worstDay");
+                assertKeys(sim.get("pain"), "maxDrawdown", "maxDrawdownAmount", "underwater", "worstDay", "worstDayAmount");
+                assertKeys(sim.get("pain").get("maxDrawdownAmount"), "amount", "peak", "trough");
+                assertKeys(sim.get("pain").get("worstDayAmount"), "date", "pnl");
+                org.assertj.core.api.Assertions.assertThat(sim.get("pain").get("maxDrawdownAmount").get("amount").isIntegralNumber())
+                        .isTrue();
                 assertKeys(sim.get("pain").get("maxDrawdown"), "rate", "peak", "trough");
                 assertKeys(sim.get("pain").get("worstDay"), "date", "dailyReturn");
                 JsonNode underwater = sim.get("pain").get("underwater");

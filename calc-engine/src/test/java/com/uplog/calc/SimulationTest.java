@@ -58,6 +58,25 @@ class SimulationTest {
     }
 
     @Test
+    void 금액_기준_하락폭은_방식마다_실제로_잃은_돈을_보여준다() {
+        Simulation lump = Simulation.run(new PurchasePlan.LumpSum(won(300)), prices, MON, WED);
+        Simulation dca = Simulation.run(new PurchasePlan.Daily(won(100)), prices, MON, WED);
+
+        // 수익률 기준은 둘 다 −50%
+        assertThat(lump.pain().maxDrawdown().rate()).isCloseTo(dca.pain().maxDrawdown().rate(), within(1e-12));
+
+        // 거치식: 평가손익 0 → −150, 하루 손익도 −150
+        assertThat(lump.pain().maxProfitDrawdown().amount()).isEqualByComparingTo("-150");
+        assertThat(lump.pain().maxProfitDrawdown().trough()).isEqualTo(TUE);
+        assertThat(lump.pain().worstDayAmount().pnl()).isEqualByComparingTo("-150");
+
+        // 적립식: 1주만 들고 있을 때 반토막이라 −50, 이후 평가손익 +40으로 회복
+        assertThat(dca.pain().maxProfitDrawdown().amount()).isEqualByComparingTo("-50");
+        assertThat(dca.pain().worstDayAmount().date()).isEqualTo(TUE);
+        assertThat(dca.pain().worstDayAmount().pnl()).isEqualByComparingTo("-50");
+    }
+
+    @Test
     void 로그는_거래일마다_한_칸씩_만든다() {
         Simulation sim = Simulation.run(new PurchasePlan.Daily(won(100)), prices, MON.minusDays(2), WED);
 

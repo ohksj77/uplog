@@ -49,10 +49,13 @@ public final class SimulationCalculator {
         PainMetrics p = sim.pain();
         SimulationResponse.Pain pain = new SimulationResponse.Pain(
                 new SimulationResponse.MaxDrawdown(p.maxDrawdown().rate(), p.maxDrawdown().peak(), p.maxDrawdown().trough()),
+                new SimulationResponse.MaxDrawdownAmount(
+                        won(p.maxProfitDrawdown().amount()), p.maxProfitDrawdown().peak(), p.maxProfitDrawdown().trough()),
                 p.longestUnderwater()
                         .map(u -> new SimulationResponse.Underwater(u.start(), u.end(), u.recovered(), u.days()))
                         .orElse(null),
-                new SimulationResponse.WorstDay(p.worstDay().date(), p.worstDay().dailyReturn()));
+                new SimulationResponse.WorstDay(p.worstDay().date(), p.worstDay().dailyReturn()),
+                new SimulationResponse.WorstDayAmount(p.worstDayAmount().date(), won(p.worstDayAmount().pnl())));
 
         List<SimulationResponse.Day> days = new ArrayList<>(sim.points().size());
         for (int i = 0; i < sim.points().size(); i++) {

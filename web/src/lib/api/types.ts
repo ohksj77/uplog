@@ -54,9 +54,14 @@ export type SimulationResult = {
     annualizedTwr: number;
   };
   pain: {
+    /** 수익률 기준(TWR) */
     maxDrawdown: { rate: number; peak: IsoDate; trough: IsoDate };
+    /** 금액 기준: 평가손익 고점 대비 감소액(원, 0 이하) */
+    maxDrawdownAmount: { amount: number; peak: IsoDate; trough: IsoDate };
     underwater: { start: IsoDate; end: IsoDate; recovered: boolean; days: number } | null;
     worstDay: { date: IsoDate; dailyReturn: number };
+    /** 금액 기준: 하루 손익(원, 입출금 제외) */
+    worstDayAmount: { date: IsoDate; pnl: number };
   };
   streaks: {
     gain: StreakStats;
