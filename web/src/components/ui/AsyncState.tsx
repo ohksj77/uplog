@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ApiError } from "@/lib/api/client";
 
 /** 불러오는 중 자리표시자. 높이는 실제 내용과 비슷하게 준다. */
@@ -17,6 +18,11 @@ export function ErrorBlock({ error, onRetry }: { error: ApiError; onRetry?: () =
     <section role="alert" className="rounded-2xl bg-surface px-5 py-10 text-center">
       <p className="font-semibold">{notConnected ? "연결된 계좌가 없어요" : "불러오지 못했어요"}</p>
       <p className="mt-2 text-sm text-muted">{error.message}</p>
+      {notConnected && (
+        <Link href="/connect" className="mt-6 inline-flex h-11 items-center rounded-xl bg-accent px-5 text-sm font-semibold text-white">
+          계좌 연결하기
+        </Link>
+      )}
       {onRetry && retryable && (
         <button type="button" onClick={onRetry} className="mt-6 h-11 rounded-xl bg-accent px-5 text-sm font-semibold text-white">
           다시 시도

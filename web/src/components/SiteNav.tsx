@@ -26,7 +26,7 @@ export function SiteNav() {
 function NavList({ pathname }: { pathname: string | null }) {
   return (
     <nav aria-label="주요 메뉴">
-      <ul className="flex gap-1 text-sm">
+      <ul className="flex text-sm sm:gap-1">
         {LINKS.map((l) => {
           const active = pathname != null && l.match(pathname);
           return (
@@ -34,7 +34,7 @@ function NavList({ pathname }: { pathname: string | null }) {
               <Link
                 href={l.href}
                 aria-current={active ? "page" : undefined}
-                className={`rounded-lg px-3 py-2 ${active ? "font-semibold text-foreground" : "text-muted hover:text-foreground"}`}
+                className={`rounded-lg px-2 py-2 whitespace-nowrap sm:px-3 ${active ? "font-semibold text-foreground" : "text-muted hover:text-foreground"}`}
               >
                 {l.label}
               </Link>

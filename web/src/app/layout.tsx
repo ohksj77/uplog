@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { UserMenu } from "@/components/auth/UserMenu";
 import { SiteNav } from "@/components/SiteNav";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { THEME_SCRIPT } from "@/lib/theme";
@@ -34,13 +35,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col">
         <header className="border-b border-border">
-          <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-4">
-            <Link href="/" className="font-semibold tracking-tight">
+          {/* 360px에서도 한 줄에 들어가도록: 메뉴 간격을 줄이고, 로그인·사용자 메뉴는 아이콘 크기로 둔다. */}
+          <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-2 px-4 sm:gap-4">
+            <Link href="/" className="shrink-0 font-semibold tracking-tight">
               업로그
             </Link>
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
               <SiteNav />
               <ThemeToggle />
+              <UserMenu />
             </div>
           </div>
         </header>

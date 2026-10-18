@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { AccountLog } from "@/components/portfolio-home/AccountLog";
 import { AccountStreaks } from "@/components/portfolio-home/AccountStreaks";
 import { AccountSummary } from "@/components/portfolio-home/AccountSummary";
+import { ConnectCtaCard, HomeAccountBanner } from "@/components/portfolio-home/HomeAccountBanner";
 import { HoldingsList } from "@/components/portfolio-home/HoldingsList";
 import { InsightsLinkCard } from "@/components/portfolio-home/InsightsLinkCard";
 import { LogHeadline } from "@/components/portfolio-home/LogHeadline";
@@ -12,6 +13,7 @@ import { ErrorBlock, LoadingBlock, SampleAccountBadge } from "@/components/ui/As
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getHoldings, getPortfolioLog, getPortfolioSummary } from "@/lib/api/portfolio-client";
 import { useApi } from "@/lib/use-api";
+import { useMe } from "@/lib/use-me";
 
 const HOME_QUESTION = "올해 나는 며칠 벌고 며칠 잃었나";
 
@@ -31,10 +33,31 @@ export function PortfolioHome() {
   const lastYear = account ? Number(account.lastDate.slice(0, 4)) : null;
   const years = log.state.status === "success" ? log.state.data.availableYears : account ? yearsBetween(account.firstDate, account.lastDate) : [];
   const shownYear = log.state.status === "success" ? log.state.data.year : (year ?? lastYear);
+  const { connectionStatus } = useMe();
+  const retryAll = () => {
+    summary.retry();
+    log.retry();
+    holdings.retry();
+  };
+
+  // 계좌가 없으면(비로그인인데 데모가 없거나, 로그인했는데 연결 전) 같은 오류를 세 번 보이지 않고 연결 안내 하나만 보여 준다.
+  const notConnected = summary.state.status === "error" && summary.state.error.code === "ACCOUNT_NOT_CONNECTED";
+  if (notConnected) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="내 계좌" question={HOME_QUESTION} />
+        <HomeAccountBanner sample={false} onBackfillDone={retryAll} />
+        {connectionStatus !== "BACKFILLING" && <ConnectCtaCard />}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10">
       <div>
+        <div className="mb-6 empty:hidden">
+          <HomeAccountBanner sample={account?.sample === true} onBackfillDone={retryAll} />
+        </div>
         <PageHeader title={account?.name ?? "내 계좌"} question={HOME_QUESTION} aside={account?.sample ? <SampleAccountBadge /> : undefined} />
         {summary.state.status === "loading" && <LoadingBlock height={148} label="계좌 요약을 불러오는 중" />}
         {summary.state.status === "error" && <ErrorBlock error={summary.state.error} onRetry={summary.retry} />}
