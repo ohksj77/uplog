@@ -74,7 +74,7 @@ function RekeyBody() {
           이럴 때 키를 다시 넣어요
         </h2>
         <ul className="list-disc space-y-1 pl-5 text-muted break-keep marker:text-muted">
-          <li>같은 키를 다른 도구에서도 써서 업로그의 접속이 끊겼을 때. 업로그 전용 키를 새로 발급해 넣어 주세요.</li>
+          <li>같은 키를 다른 도구에서도 써서 UpLog의 접속이 끊겼을 때. UpLog 전용 키를 새로 발급해 넣어 주세요.</li>
           <li>토스증권에서 키를 재발급했을 때. 재발급하면 예전 키는 바로 못 쓰게 돼요.</li>
           <li>키가 만료됐을 때. 토스증권 키는 발급 1년 뒤 만료돼요.</li>
         </ul>

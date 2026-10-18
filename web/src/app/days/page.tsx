@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { DayDetailFromUrl, DayDetailSkeleton } from "@/components/day-detail";
 
 export const metadata: Metadata = {
-  title: "하루 기록 | 업로그",
+  title: "하루 기록 | UpLog",
   description: "그날 계좌 손익을 종목별로 나누고, 거래와 입출금을 함께 보여드려요.",
 };
 

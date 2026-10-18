@@ -55,6 +55,17 @@ class DesktopGuardsTest {
     }
 
     @Test
+    void 헤더_값은_비ASCII를_받고_제어_문자는_막는다() {
+        String utf8AsLatin1 = new String("x 업로그/0.1.0 y".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                java.nio.charset.StandardCharsets.ISO_8859_1);
+        assertThat(DesktopSecurityConfiguration.allowedHeaderValue(utf8AsLatin1)).isTrue();
+        assertThat(DesktopSecurityConfiguration.allowedHeaderValue("Mozilla/5.0\tuplog/0.1.0")).isTrue();
+        assertThat(DesktopSecurityConfiguration.allowedHeaderValue("a\r\nSet-Cookie: x")).isFalse();
+        assertThat(DesktopSecurityConfiguration.allowedHeaderValue("a\u0000b")).isFalse();
+        assertThat(DesktopSecurityConfiguration.allowedHeaderValue("a\u007Fb")).isFalse();
+    }
+
+    @Test
     void 바인딩은_127_0_0_1만_받는다() {
         for (String address : new String[] {null, "", "0.0.0.0", "192.168.0.10", "::", "localhost"}) {
             assertThatThrownBy(() -> DesktopSecurityConfiguration.validate(props(TOKEN, false), address))

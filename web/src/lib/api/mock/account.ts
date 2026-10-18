@@ -80,7 +80,7 @@ export function me(): Me {
 export function setup(): TossSetup {
   return {
     keyPageUrl: "https://www.tossinvest.com/",
-    notes: ["같은 키를 다른 도구에서도 쓰면 서로의 접속이 끊길 수 있어요. 업로그 전용 키를 새로 발급해 주세요."],
+    notes: ["같은 키를 다른 도구에서도 쓰면 서로의 접속이 끊길 수 있어요. UpLog 전용 키를 새로 발급해 주세요."],
     simulated: true,
   };
 }

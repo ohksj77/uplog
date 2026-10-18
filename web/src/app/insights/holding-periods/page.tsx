@@ -4,7 +4,7 @@ import { HoldingPeriodsView } from "@/components/insights/holding-periods";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
-  title: "보유 기간 타임라인 | 업로그",
+  title: "보유 기간 타임라인 | UpLog",
   description: "포지션마다 매수부터 매도까지를 막대로 그리고, 보유 기간별 성적을 비교해요.",
 };
 

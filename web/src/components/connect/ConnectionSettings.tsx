@@ -83,7 +83,7 @@ function SettingsBody() {
           <dd>{formatDateTime(c.lastSyncedAt)}</dd>
         </dl>
         {c.backfill && (c.backfill.state === "RUNNING" || c.backfill.state === "PENDING") && <BackfillProgress connection={c} />}
-        {c.status === "ACTIVE" && <p className="text-xs text-muted">매일 아침 7시에 전 거래일 기록을 받아 와요. 그때 맥이 꺼져 있었다면 다음에 업로그를 열 때 따라잡아요.</p>}
+        {c.status === "ACTIVE" && <p className="text-xs text-muted">매일 아침 7시에 전 거래일 기록을 받아 와요. 그때 맥이 꺼져 있었다면 다음에 UpLog를 열 때 따라잡아요.</p>}
       </section>
 
       <section aria-labelledby="key-title" className="space-y-2 text-sm">
@@ -159,7 +159,7 @@ function LastError({ message, error }: { message: string | null; error: boolean 
         {ip
           ? "집 인터넷의 공인 IP가 바뀌었을 수 있어요. 아래에서 이 맥의 공인 IP를 확인하고, 토스증권 웹의 설정(톱니바퀴) > Open API > 허용 IP 관리에 그 IP가 없으면 'IP 추가'로 더한 뒤 다시 수집해 주세요."
           : keyProblem
-            ? "같은 키를 다른 도구에서도 쓰거나 키를 재발급·만료했다면 업로그의 접속이 끊겨요. 업로그 전용 키를 새로 발급해 다시 넣어 주세요. 계좌와 기록은 그대로예요."
+            ? "같은 키를 다른 도구에서도 쓰거나 키를 재발급·만료했다면 UpLog의 접속이 끊겨요. UpLog 전용 키를 새로 발급해 다시 넣어 주세요. 계좌와 기록은 그대로예요."
             : "잠시 뒤 다시 수집해 보세요. 계속되면 키를 재발급했거나 만료되지 않았는지 확인하고, 새 키를 다시 넣어 주세요."}
       </p>
       {ip && <PublicIpCheck />}

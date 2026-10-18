@@ -6,7 +6,7 @@ import { LoadingBlock } from "@/components/ui/AsyncState";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
-  title: "판 뒤의 그림자 | 업로그",
+  title: "판 뒤의 그림자 | UpLog",
   description: "매도한 종목의 매도 뒤 주가를 이어 그려 매도 판단을 돌아봐요.",
 };
 

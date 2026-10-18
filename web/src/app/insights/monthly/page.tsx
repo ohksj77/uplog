@@ -4,7 +4,7 @@ import { MonthlyView } from "@/components/insights/monthly/MonthlyView";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
-  title: "월별 성적표 | 업로그",
+  title: "월별 성적표 | UpLog",
   description: "해마다 달마다 계좌 수익률과 손익을 한 표로 보여줘요.",
 };
 

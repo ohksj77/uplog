@@ -4,7 +4,7 @@ import { AllocationView } from "@/components/insights/allocation/AllocationView"
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
-  title: "자산 구성 변화 | 업로그",
+  title: "자산 구성 변화 | UpLog",
   description: "시기별로 내 돈이 어느 종목과 국내·해외·현금에 있었는지 쌓아서 보여 드려요.",
 };
 

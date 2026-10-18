@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { HomeSkeleton, PortfolioHome } from "@/components/portfolio-home";
 
 export const metadata: Metadata = {
-  title: "수익 로그 | 업로그",
+  title: "수익 로그 | UpLog",
   description: "하루하루 계좌 손익을 로그로 쌓아 올해 며칠 벌고 며칠 잃었는지 보여드려요.",
 };
 

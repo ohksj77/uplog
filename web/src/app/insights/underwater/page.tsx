@@ -3,7 +3,7 @@ import { UnderwaterView } from "@/components/insights/underwater/UnderwaterView"
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
-  title: "수중 차트 | 업로그",
+  title: "수중 차트 | UpLog",
   description: "계좌가 직전 고점 대비 얼마나 빠져 있었는지와 회복까지 걸린 기간을 보여줘요.",
 };
 

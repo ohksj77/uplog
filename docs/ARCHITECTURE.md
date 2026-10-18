@@ -1,6 +1,6 @@
-# 업로그 (uplog) — 아키텍처 설계
+# UpLog (업로그) — 아키텍처 설계
 
-기획서: [업로그 서비스 기획서](https://claude.ai/artifact/Xd6xDtN83bG4rf3auWhaev)
+기획서: [UpLog 서비스 기획서](https://claude.ai/artifact/Xd6xDtN83bG4rf3auWhaev)
 
 실시간이 아니라 **일 단위 스냅샷**을 중심에 둔 모듈형 모놀리스다. 정책상 토스 Open API 키를 서비스 서버에 둘 수 없어서 **서버 없이 맥에서만 도는 앱**이 됐다: 이 코드는 Electron 앱 안의 로컬 엔진(`desktop` 프로필, 127.0.0.1 전용, H2 파일 DB)으로 뜬다. 구조·실행 계약은 [design/desktop-app.md](design/desktop-app.md). 아래 1·3·4절의 서버 그림(PostgreSQL, api/batch 프로필, 고정 IP, KMS)은 서버 시절 설계이고 코드는 `server-archive` 브랜치에 있다.
 

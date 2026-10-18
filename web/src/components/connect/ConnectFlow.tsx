@@ -188,7 +188,7 @@ function ConnectSteps() {
       {step === 2 && (
         <StepSection n={2} title="이 맥의 공인 IP 등록하기" headingRef={headingRef}>
           <p className="text-sm break-keep">
-            토스증권은 미리 등록한 IP에서 온 요청만 받아요. 업로그는 이 맥에서 토스증권에 바로 접속하니, 이 맥의 공인 IP를 등록해야 해요. 아래에서 IP를
+            토스증권은 미리 등록한 IP에서 온 요청만 받아요. UpLog는 이 맥에서 토스증권에 바로 접속하니, 이 맥의 공인 IP를 등록해야 해요. 아래에서 IP를
             확인하고, 같은 Open API 화면 아래쪽 <strong className="font-semibold">허용 IP 관리</strong>에서 <strong className="font-semibold">IP 추가</strong>를
             눌러 더해 주세요. IP는 여러 개 등록할 수 있어서, 이미 등록한 다른 IP는 그대로 두어도 돼요.
           </p>
@@ -260,7 +260,7 @@ function KeyIssueGuide({ setup }: { setup: ApiState<TossSetup> }) {
           복사할 수 있어요.
         </li>
         <li>
-          <strong className="font-semibold">Client Secret은 발급한 그 순간에만 보여요.</strong> 바로 복사해서 업로그에 붙여 넣거나 안전한 곳에 적어 두세요. 나중에는
+          <strong className="font-semibold">Client Secret은 발급한 그 순간에만 보여요.</strong> 바로 복사해서 UpLog에 붙여 넣거나 안전한 곳에 적어 두세요. 나중에는
           tssk_live_******** 처럼 가려져서 다시 볼 수 없고, 잃어버리면 재발급해야 해요.
         </li>
       </ol>
@@ -271,7 +271,7 @@ function KeyIssueGuide({ setup }: { setup: ApiState<TossSetup> }) {
         </a>
       )}
       <div className={`${card} space-y-2 text-sm`}>
-        <p className="font-medium">업로그 전용 키를 새로 발급해 주세요</p>
+        <p className="font-medium">UpLog 전용 키를 새로 발급해 주세요</p>
         <p className="text-muted break-keep">
           키 하나에는 접속 토큰이 하나만 유효해요. 다른 도구에서 쓰던 키를 함께 쓰면 서로의 접속을 끊어서, 수집이 실패할 수 있어요. 키는 발급 1년 뒤 만료돼요.
         </p>
@@ -295,8 +295,8 @@ function KeyWarning() {
       </p>
       <ul className="list-disc space-y-1 pl-5 text-muted break-keep marker:text-muted">
         <li>토스증권 Open API 키에는 조회만 따로 주는 권한이 없어요. 그래서 키를 아무에게도 보여 주지 마세요.</li>
-        <li>업로그는 조회 API만 써요. 주문 요청 자체를 보낼 수 없게 막혀 있어요.</li>
-        <li>키는 이 맥의 키체인으로 보호돼요. 업로그 서버는 없어요 — 키와 기록은 이 맥 밖으로 나가지 않아요.</li>
+        <li>UpLog는 조회 API만 써요. 주문 요청 자체를 보낼 수 없게 막혀 있어요.</li>
+        <li>키는 이 맥의 키체인으로 보호돼요. UpLog 서버는 없어요 — 키와 기록은 이 맥 밖으로 나가지 않아요.</li>
         <li>연결을 해제하면 키를 바로 지워요.</li>
       </ul>
     </aside>
@@ -328,7 +328,7 @@ function ChooseAccount({
       <h2 id="choose-account-title" ref={headingRef} tabIndex={-1} className="text-lg font-semibold outline-none">
         연결할 계좌를 골라 주세요
       </h2>
-      <p className="text-sm text-muted break-keep">키가 맞아요. 이 키로 볼 수 있는 종합매매 계좌가 여러 개라, 업로그에 연결할 계좌 하나를 골라 주세요.</p>
+      <p className="text-sm text-muted break-keep">키가 맞아요. 이 키로 볼 수 있는 종합매매 계좌가 여러 개라, UpLog에 연결할 계좌 하나를 골라 주세요.</p>
       <form onSubmit={submit} className="space-y-5">
         <fieldset>
           <legend className="sr-only">연결할 계좌</legend>

@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -18,6 +19,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.firewall.StrictHttpFirewall;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -86,6 +88,21 @@ public class DesktopSecurityConfiguration {
             http.addFilterBefore(new HostCheckFilter(), SecurityContextHolderFilter.class);
         }
         return http.build();
+    }
+
+    /**
+     * 헤더 값에 한글 같은 비ASCII가 있어도 받는다. 기본 방화벽은 Latin-1로 읽힌 UTF-8 바이트(0x80~0x9F)를 제어 문자로 보고
+     * 400을 준다(Electron 기본 User-Agent의 앱 이름 등). 제어 문자는 여전히 막는다.
+     */
+    @Bean
+    WebSecurityCustomizer headerValueFirewall() {
+        StrictHttpFirewall firewall = new StrictHttpFirewall();
+        firewall.setAllowedHeaderValues(DesktopSecurityConfiguration::allowedHeaderValue);
+        return web -> web.httpFirewall(firewall);
+    }
+
+    static boolean allowedHeaderValue(String value) {
+        return value.chars().noneMatch(c -> c < 0x20 && c != '\t' || c == 0x7F);
     }
 
     /** 아이디·비밀번호 로그인은 없다. 이 빈이 있으면 스프링이 기본 사용자와 무작위 비밀번호를 만들지 않는다. */

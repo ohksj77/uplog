@@ -4,7 +4,7 @@ import { ResultSkeleton } from "@/components/result/ResultSkeleton";
 import { SimulationResultView } from "@/components/result/SimulationResultView";
 
 export const metadata: Metadata = {
-  title: "시뮬레이션 결과 | 업로그",
+  title: "시뮬레이션 결과 | UpLog",
   description: "그때 샀다면 어땠을지, 거치식과 적립식 결과를 하루 단위 로그로 비교해요.",
 };
 

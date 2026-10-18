@@ -4,7 +4,7 @@ import { HoldingDetailFromUrl } from "@/components/holding";
 import { LoadingBlock } from "@/components/ui/AsyncState";
 
 export const metadata: Metadata = {
-  title: "종목 상세 | 업로그",
+  title: "종목 상세 | UpLog",
   description: "한 종목의 보유 현황, 사고판 시점, 판 뒤의 주가를 모아 봐요.",
 };
 

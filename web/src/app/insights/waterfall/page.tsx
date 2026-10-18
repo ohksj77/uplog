@@ -5,7 +5,7 @@ import { LoadingBlock } from "@/components/ui/AsyncState";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
-  title: "손익 폭포수 | 업로그",
+  title: "손익 폭포수 | UpLog",
   description: "기간 손익을 종목별·배당·수수료·세금·환율 기여로 쌓아 내려가며 보여줘요.",
 };
 

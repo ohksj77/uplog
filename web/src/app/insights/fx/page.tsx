@@ -4,7 +4,7 @@ import { FxView } from "@/components/insights/fx";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
-  title: "수익 분해 | 업로그",
+  title: "수익 분해 | UpLog",
   description: "해외 종목 수익을 주가 효과와 환율 효과로 나눠 보여 드려요.",
 };
 

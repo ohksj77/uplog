@@ -31,12 +31,12 @@ export function DesktopLockScreen() {
     >
       <div className="w-full max-w-md space-y-3 text-center">
         <h1 id="desktop-lock-title" ref={headingRef} tabIndex={-1} className="text-xl font-bold tracking-tight outline-none">
-          업로그 앱에서 열어 주세요
+          UpLog 앱에서 열어 주세요
         </h1>
         <div id="desktop-lock-body" className="space-y-2 text-sm text-muted break-keep">
-          <p>이 화면은 업로그 앱 창에서만 열 수 있어요. 내 계좌 기록과 키를 지키기 위해서예요.</p>
+          <p>이 화면은 UpLog 앱 창에서만 열 수 있어요. 내 계좌 기록과 키를 지키기 위해서예요.</p>
           <p>
-            맥의 메뉴 막대나 Dock에서 업로그를 열어 주세요. 앱 창인데도 이 안내가 보이면 앱을 종료한 뒤 다시 열어 주세요.
+            맥의 메뉴 막대나 Dock에서 UpLog를 열어 주세요. 앱 창인데도 이 안내가 보이면 앱을 종료한 뒤 다시 열어 주세요.
           </p>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { InsightsHub } from "@/components/insights/InsightsHub";
 
-export const metadata: Metadata = { title: "분석 | 업로그" };
+export const metadata: Metadata = { title: "분석 | UpLog" };
 
 export default function InsightsPage() {
   return (

@@ -8,7 +8,7 @@ import { DESKTOP_LOCKED, markDesktopLocked } from "@/lib/desktop-lock";
 // NEXT_PUBLIC_USE_MOCK=1 이면 엔진 없이 mock 데이터를 쓴다. next dev에서만 켜지고, 빌드(정적 export)에는 들어가지 않는다.
 export const USE_MOCK = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_MOCK === "1";
 
-export const NETWORK_MESSAGE = "업로그 앱에 연결하지 못했어요. 앱이 켜져 있는지 확인하고, 계속되면 앱을 다시 열어 주세요.";
+export const NETWORK_MESSAGE = "UpLog 앱에 연결하지 못했어요. 앱이 켜져 있는지 확인하고, 계속되면 앱을 다시 열어 주세요.";
 
 export class ApiError extends Error {
   constructor(

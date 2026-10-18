@@ -104,8 +104,8 @@ export function ConnectCtaCard() {
       </div>
       <ul className="space-y-1.5 text-sm text-muted break-keep">
         <li>토스증권 웹(WTS)에서 Open API 키를 발급해 붙여 넣으면 돼요. 세 단계예요.</li>
-        <li>업로그는 조회만 해요. 주문하지 않아요.</li>
-        <li>키는 이 맥의 키체인으로 보호돼요. 업로그 서버는 없어요 — 키와 기록은 이 맥 밖으로 나가지 않아요.</li>
+        <li>UpLog는 조회만 해요. 주문하지 않아요.</li>
+        <li>키는 이 맥의 키체인으로 보호돼요. UpLog 서버는 없어요 — 키와 기록은 이 맥 밖으로 나가지 않아요.</li>
         <li>연결을 해제하면 키를 바로 지워요.</li>
       </ul>
       <Link

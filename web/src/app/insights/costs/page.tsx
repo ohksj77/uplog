@@ -6,7 +6,7 @@ import { LoadingBlock } from "@/components/ui/AsyncState";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
-  title: "숨은 비용 | 업로그",
+  title: "숨은 비용 | UpLog",
   description: "한 해 동안 수수료와 세금으로 나간 돈을 달별·종목별로 보여 드려요.",
 };
 

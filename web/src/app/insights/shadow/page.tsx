@@ -5,7 +5,7 @@ import { LoadingBlock } from "@/components/ui/AsyncState";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
-  title: "그림자 계좌 | 업로그",
+  title: "그림자 계좌 | UpLog",
   description: "실제 입금 날짜와 금액 그대로 지수에 넣었다면 지금 얼마일지 내 계좌와 비교해요.",
 };
 

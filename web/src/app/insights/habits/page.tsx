@@ -4,7 +4,7 @@ import { HabitsView } from "@/components/insights/habits/HabitsView";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
-  title: "매매 습관 | 업로그",
+  title: "매매 습관 | UpLog",
   description: "이익과 손실 포지션의 보유 기간, 물타기 결과, 달마다 사고판 횟수를 보여줘요.",
 };
 
