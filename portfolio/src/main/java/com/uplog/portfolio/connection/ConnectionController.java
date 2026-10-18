@@ -1,6 +1,6 @@
 package com.uplog.portfolio.connection;
 
-import com.uplog.auth.CurrentUser;
+import com.uplog.localuser.CurrentUser;
 import com.uplog.portfolio.connection.ConnectionDtos.ChooseAccountRequest;
 import com.uplog.portfolio.connection.ConnectionDtos.ConnectRequest;
 import com.uplog.portfolio.connection.ConnectionDtos.ConnectResponse;
@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 내 정보와 토스 계좌 연결 API(docs/design/account-connection.md "API 계약"). {@code /api/me} 말고는 로그인이 필요하다. */
+/** 내 정보와 토스 계좌 연결 API(docs/design/account-connection.md "API 계약"). 요청자는 늘 로컬 사용자다(실행 쿠키가 맞을 때). */
 @RestController
 public class ConnectionController {
 
@@ -30,7 +30,7 @@ public class ConnectionController {
         this.service = service;
     }
 
-    /** 비로그인도 200(user = null). */
+    /** user는 로컬 사용자(provider LOCAL). 연결이 없으면 connection.status = NONE. */
     @GetMapping("/api/me")
     public MeResponse me(Optional<CurrentUser> user) {
         return service.me(user.map(CurrentUser::id));

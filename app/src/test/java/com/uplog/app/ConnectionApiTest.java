@@ -3,6 +3,7 @@ package com.uplog.app;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -25,12 +26,10 @@ import com.uplog.portfolio.connect.BrokerAccount;
 import com.uplog.portfolio.connect.BrokerException.Reason;
 import com.uplog.portfolio.connect.CredentialReader;
 import com.uplog.portfolio.connect.IngestStatus;
-import jakarta.servlet.http.Cookie;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +43,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.RequestBuilder;
@@ -54,14 +52,12 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 /** 토스 계좌 연결 흐름(가짜 검증기·수집 예약기). 키(secret)는 어떤 응답·로그에도 나오면 안 된다. */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles({"local", "api"})
-@TestPropertySource(properties = "uplog.egress-ips=127.0.0.1")
+@ActiveProfiles("desktop")
 @Import(ConnectionTestDoubles.class)
 @ExtendWith(OutputCaptureExtension.class)
 class ConnectionApiTest {
 
     private static final String SECRET = "SECRET-never-leak-9f3a7c";
-    private static final AtomicInteger USERS = new AtomicInteger();
 
     @Autowired
     private MockMvc mvc;
@@ -83,19 +79,19 @@ class ConnectionApiTest {
     private JdbcTemplate jdbc;
 
     private final List<String> bodies = new ArrayList<>();
-    private Cookie session;
 
     @BeforeEach
-    void login() throws Exception {
+    void reset() throws Exception {
+        LocalAccount.reset(mvc);
         verifier.reset();
         scheduler.reset();
-        session = Sessions.devLogin(mvc, "연결" + USERS.incrementAndGet());
     }
 
     @AfterEach
-    void 키는_응답과_로그_어디에도_없다(CapturedOutput output) {
+    void 키는_응답과_로그_어디에도_없다(CapturedOutput output) throws Exception {
         assertThat(bodies).isNotEmpty().noneMatch(b -> b.contains(SECRET));
         assertThat(output.getAll()).doesNotContain(SECRET);
+        LocalAccount.reset(mvc);
     }
 
     private ResultActions perform(RequestBuilder request) throws Exception {
@@ -107,7 +103,7 @@ class ConnectionApiTest {
     }
 
     private MockHttpServletRequestBuilder write(MockHttpServletRequestBuilder builder) {
-        return builder.cookie(session).header("Origin", Sessions.WEB_ORIGIN);
+        return builder.header("Origin", LocalAccount.DEV_ORIGIN);
     }
 
     private ResultActions connect(String clientId, String clientSecret) throws Exception {
@@ -116,7 +112,7 @@ class ConnectionApiTest {
     }
 
     private long accountIdOfMe() throws Exception {
-        String me = mvc.perform(get("/api/me").cookie(session)).andReturn().getResponse().getContentAsString();
+        String me = mvc.perform(get("/api/me")).andReturn().getResponse().getContentAsString();
         int userId = com.jayway.jsonpath.JsonPath.read(me, "$.user.id");
         return repository.activeAccountOf(userId).orElseThrow().id();
     }
@@ -137,10 +133,10 @@ class ConnectionApiTest {
         byte[] stored = jdbc.queryForObject("SELECT secret_ciphertext FROM broker_credential WHERE account_id = ?", byte[].class, accountId);
         assertThat(new String(stored, java.nio.charset.StandardCharsets.ISO_8859_1)).doesNotContain(SECRET);
 
-        perform(get("/api/me").cookie(session))
+        perform(get("/api/me"))
                 .andExpect(jsonPath("$.connection.status", is("BACKFILLING")))
                 .andExpect(jsonPath("$.connection.maskedAccountNo", is("1234-**-**56")));
-        perform(get("/api/connections/toss").cookie(session))
+        perform(get("/api/connections/toss"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is("BACKFILLING")))
                 .andExpect(jsonPath("$.maskedAccountNo", is("1234-**-**56")))
@@ -152,12 +148,12 @@ class ConnectionApiTest {
                 .andExpect(jsonPath("$.recentGaps", hasSize(0)));
 
         scheduler.status = new IngestStatus("DONE", 1.0, ConnectionTestDoubles.SYNCED_AT, null, List.of(LocalDate.of(2026, 10, 12)));
-        perform(get("/api/connections/toss").cookie(session))
+        perform(get("/api/connections/toss"))
                 .andExpect(jsonPath("$.status", is("ACTIVE")))
                 .andExpect(jsonPath("$.lastSyncedAt", is("2026-10-16T22:05:00Z")))
                 .andExpect(jsonPath("$.recentGaps", contains("2026-10-12")));
         scheduler.status = new IngestStatus("DONE", 1.0, null, "다른 곳에서 같은 키를 사용 중", List.of());
-        perform(get("/api/me").cookie(session)).andExpect(jsonPath("$.connection.status", is("ERROR")));
+        perform(get("/api/me")).andExpect(jsonPath("$.connection.status", is("ERROR")));
 
         // 이미 연결돼 있으면 검증하지 않고 409
         verifier.lastCredentials = null;
@@ -179,7 +175,7 @@ class ConnectionApiTest {
                 .andExpect(jsonPath("$.accounts[1].maskedAccountNo", is("2222-**-**22")))
                 .andExpect(jsonPath("$.accounts[1].type", is("BROKERAGE")));
         // 고르기 전에는 아무것도 저장하지 않는다
-        perform(get("/api/me").cookie(session)).andExpect(jsonPath("$.connection.status", is("NONE")));
+        perform(get("/api/me")).andExpect(jsonPath("$.connection.status", is("NONE")));
         assertThat(scheduler.calls).isEmpty();
 
         perform(write(post("/api/connections/toss/account")).contentType(MediaType.APPLICATION_JSON)
@@ -190,7 +186,7 @@ class ConnectionApiTest {
                         .content("{\"clientId\":\"client-m\",\"clientSecret\":\"" + SECRET + "\",\"accountSeq\":\"22\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status", is("BACKFILLING")));
-        perform(get("/api/me").cookie(session)).andExpect(jsonPath("$.connection.maskedAccountNo", is("2222-**-**22")));
+        perform(get("/api/me")).andExpect(jsonPath("$.connection.maskedAccountNo", is("2222-**-**22")));
         assertThat(credentialReader.read(accountIdOfMe()).clientSecret()).isEqualTo(SECRET);
     }
 
@@ -211,16 +207,18 @@ class ConnectionApiTest {
                     .andExpect(jsonPath("$.code", is(e.getValue()[1])))
                     .andExpect(jsonPath("$.message", notNullValue()));
             if (e.getKey() == Reason.IP_NOT_ALLOWED) {
-                r.andExpect(jsonPath("$.egressIps", contains("127.0.0.1")));
+                r.andExpect(jsonPath("$.publicIpCheck", is("/api/desktop/public-ip")))
+                        .andExpect(jsonPath("$.message", containsString("이 맥의 공인 IP")))
+                        .andExpect(jsonPath("$.egressIps").doesNotExist());
             } else {
-                r.andExpect(jsonPath("$.egressIps").doesNotExist());
+                r.andExpect(jsonPath("$.publicIpCheck").doesNotExist());
             }
         }
         verifier.failure = null;
         verifier.accounts = List.of(new BrokerAccount("5", "5555", "PENSION"));
         connect("client-f", SECRET).andExpect(status().isBadRequest()).andExpect(jsonPath("$.code", is("TOSS_NO_BROKERAGE_ACCOUNT")));
 
-        perform(get("/api/me").cookie(session)).andExpect(jsonPath("$.connection.status", is("NONE")));
+        perform(get("/api/me")).andExpect(jsonPath("$.connection.status", is("NONE")));
         assertThat(scheduler.calls).isEmpty();
     }
 
@@ -268,8 +266,9 @@ class ConnectionApiTest {
         assertThatThrownBy(() -> credentialReader.read(accountId)).isInstanceOf(CredentialReader.CredentialNotFoundException.class);
         assertThat(repository.findAccount(accountId).orElseThrow().status()).isEqualTo(PortfolioRepository.AccountStatus.DISCONNECTED);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM trade WHERE account_id = ?", Long.class, accountId)).isPositive();
-        perform(get("/api/me").cookie(session)).andExpect(jsonPath("$.connection.status", is("NONE")));
-        perform(get("/api/portfolio/summary").cookie(session)).andExpect(status().isNotFound());
+        perform(get("/api/me")).andExpect(jsonPath("$.connection.status", is("NONE")));
+        // 연결을 해제하면 다시 데모 계좌를 본다
+        perform(get("/api/portfolio/summary")).andExpect(jsonPath("$.account.sample", is(true)));
 
         connect("client-d", SECRET).andExpect(status().isCreated());
         assertThat(accountIdOfMe()).isEqualTo(accountId);
@@ -297,21 +296,22 @@ class ConnectionApiTest {
     }
 
     @Test
-    void 포트폴리오_API는_로그인_사용자의_계좌를_쓴다() throws Exception {
+    void 연결하기_전에는_데모_계좌_연결하면_내_계좌를_쓴다() throws Exception {
+        perform(get("/api/portfolio/summary"))
+                .andExpect(jsonPath("$.account.name", is("데모 계좌")))
+                .andExpect(jsonPath("$.account.sample", is(true)));
+        perform(get("/api/me"))
+                .andExpect(jsonPath("$.user.provider", is("LOCAL")))
+                .andExpect(jsonPath("$.connection.status", is("NONE")));
+
         connect("client-p", SECRET).andExpect(status().isCreated());
         long accountId = accountIdOfMe();
         copyDemoData(accountId);
 
-        perform(get("/api/portfolio/summary").cookie(session))
+        perform(get("/api/portfolio/summary"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.account.name", is("토스증권 계좌")))
                 .andExpect(jsonPath("$.account.sample", is(false)));
-        perform(get("/api/portfolio/summary"))
-                .andExpect(jsonPath("$.account.name", is("데모 계좌")))
-                .andExpect(jsonPath("$.account.sample", is(true)));
-        // 다른 사용자는 이 계좌를 보지 못한다
-        Cookie other = Sessions.devLogin(mvc, "남의계좌" + USERS.incrementAndGet());
-        perform(get("/api/portfolio/summary").cookie(other)).andExpect(status().isNotFound());
     }
 
     /** 데모 계좌의 체결·입출금을 이 계좌에 복사하고 account_day를 만든다. */

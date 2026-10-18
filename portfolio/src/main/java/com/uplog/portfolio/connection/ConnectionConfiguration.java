@@ -4,5 +4,5 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({ConnectionProperties.class, EgressProperties.class})
+@EnableConfigurationProperties(ConnectionProperties.class)
 public class ConnectionConfiguration {}

@@ -10,6 +10,9 @@ import java.util.List;
 /** 연결 API 요청·응답(docs/design/account-connection.md "API 계약"). */
 public final class ConnectionDtos {
 
+    /** 이 맥의 공인 IP를 확인하는 엔진 API(누를 때만 부른다). setup과 TOSS_IP_NOT_ALLOWED 오류가 가리킨다. */
+    public static final String PUBLIC_IP_CHECK = "/api/desktop/public-ip";
+
     private ConnectionDtos() {}
 
     /** secret이 로그·오류에 찍히지 않게 toString을 가린다. */
@@ -37,8 +40,11 @@ public final class ConnectionDtos {
         }
     }
 
-    /** @param simulated 가짜 토스 서버에 연결되는 개발 환경이면 true */
-    public record SetupResponse(List<String> egressIps, URI keyPageUrl, List<String> notes, boolean simulated) {}
+    /**
+     * @param publicIpCheck 허용 IP 단계에서 이 맥의 공인 IP를 확인할 엔진 API 경로({@value #PUBLIC_IP_CHECK}). 사용자가 누를 때만 부른다
+     * @param simulated 가짜 토스 서버에 연결되는 개발 환경이면 true
+     */
+    public record SetupResponse(String publicIpCheck, URI keyPageUrl, List<String> notes, boolean simulated) {}
 
     /** @param state PENDING | RUNNING | DONE | FAILED */
     public record Backfill(String state, double progress) {}
@@ -55,12 +61,15 @@ public final class ConnectionDtos {
 
     public record MeResponse(MeUser user, MeConnection connection) {}
 
-    /** 공통 오류 형식. egressIps는 TOSS_IP_NOT_ALLOWED일 때만, field는 틀린 입력을 알 때만(clientId | clientSecret) */
+    /**
+     * 공통 오류 형식. publicIpCheck는 TOSS_IP_NOT_ALLOWED일 때만({@value #PUBLIC_IP_CHECK}), field는 틀린 입력을 알 때만
+     * (clientId | clientSecret).
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record ErrorResponse(String code, String message, List<String> egressIps, String field) {
+    public record ErrorResponse(String code, String message, String publicIpCheck, String field) {
 
-        public ErrorResponse(String code, String message, List<String> egressIps) {
-            this(code, message, egressIps, null);
+        public ErrorResponse(String code, String message) {
+            this(code, message, null, null);
         }
     }
 

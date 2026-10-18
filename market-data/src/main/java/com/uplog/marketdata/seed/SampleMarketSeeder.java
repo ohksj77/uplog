@@ -35,7 +35,7 @@ import org.springframework.stereotype.Component;
  * <p>종목은 시장 지수에 베타만큼 따라 움직이고, 샘플 ETF 둘은 지수를 거의 그대로 따라간다. 데모 계좌 시드보다 먼저 돈다.
  */
 @Component
-@Profile("local")
+@Profile("desktop")
 @Order(SampleMarketSeeder.ORDER)
 public class SampleMarketSeeder implements ApplicationRunner {
 

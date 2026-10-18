@@ -4,7 +4,8 @@
 공통 규칙(금액·비율·날짜·오류 형식)은 [simulation.md](simulation.md)와 같다.
 
 - 금액은 **원화 정수**. 해외 종목의 현지 통화 값은 `…Local` 접미사(소수 허용)를 붙인다.
-- 계좌는 요청자의 계좌다: 비로그인은 데모 계좌(`account.sample = true`, `local` 프로필에서만 시드), 로그인은 연결한 자기 계좌. 없으면 `ACCOUNT_NOT_CONNECTED`([design/account-connection.md](../design/account-connection.md)).
+- 계좌는 로컬 사용자의 계좌다: 토스를 연결하기 전(또는 해제한 뒤)에는 데모 계좌(`account.sample = true`, `desktop` 프로필이 시드), 연결하면 자기 계좌. 데모 계좌도 없으면 `ACCOUNT_NOT_CONNECTED`([design/account-connection.md](../design/account-connection.md)).
+- 모든 `/api/**`는 맥 앱의 실행 쿠키가 있어야 한다(없으면 403 `DESKTOP_LOCKED`, [design/desktop-app.md](../design/desktop-app.md)).
 - 오류 코드 추가: `ACCOUNT_NOT_CONNECTED`(404), `INSTRUMENT_NOT_FOUND`(404), `DATE_NOT_FOUND`(404: 거래일이 아니거나 기록 없음), `ACCOUNT_NOT_READY`(409: 연결 직후 역산 중이라 시세가 아직 다 들어오지 않음, 잠시 뒤 다시)
 
 ## 공통 타입

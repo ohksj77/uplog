@@ -2,7 +2,7 @@
 
 기획서: [업로그 서비스 기획서](https://claude.ai/artifact/Xd6xDtN83bG4rf3auWhaev)
 
-실시간이 아니라 **일 단위 스냅샷**을 중심에 둔 모듈형 모놀리스다. 코드는 하나로 두고, 실행 프로필로 API 서버(`api`)와 배치 워커(`batch`)를 나눈다.
+실시간이 아니라 **일 단위 스냅샷**을 중심에 둔 모듈형 모놀리스다. 정책상 토스 Open API 키를 서비스 서버에 둘 수 없어서 **서버 없이 맥에서만 도는 앱**이 됐다: 이 코드는 Electron 앱 안의 로컬 엔진(`desktop` 프로필, 127.0.0.1 전용, H2 파일 DB)으로 뜬다. 구조·실행 계약은 [design/desktop-app.md](design/desktop-app.md). 아래 1·3·4절의 서버 그림(PostgreSQL, api/batch 프로필, 고정 IP, KMS)은 서버 시절 설계이고 코드는 `server-archive` 브랜치에 있다.
 
 ## 1. 전체 그림
 
@@ -31,25 +31,25 @@
 |---|---|---|
 | `core` | `Money`, `CurrencyCode`, 거래일 캘린더(KR/US) | MVP |
 | `calc-engine` | 일별 손익, TWR, 이동평균 실현손익, 벤치마크 리플레이, 시뮬레이션. 스프링·DB 의존 없는 순수 자바 | MVP |
-| `user-auth` | 사용자·외부 계정(`app_user`, `user_identity`), 세션(서명한 JWT, HttpOnly 쿠키 `uplog_session`, 14일), 카카오 OAuth2 로그인(env 설정 시)·`local` 개발용 로그인, Spring Security(상태 없음, `Origin` 검사로 CSRF 방어, 401 JSON), `CurrentUser` | MVP |
-| `broker-toss` | `BrokerPort`·`BrokerVerifier`의 토스 구현(`TossBrokerAdapter`): clientId별 토큰 캐시(401 `token-revoked`면 한 번만 재발급), 그룹별 토큰 버킷 레이트리밋(`X-RateLimit-Remaining`이 낮으면 늦춤, 429는 `Retry-After`), 5xx 백오프, 나가는 요청 허용 목록(토큰 발급 + 조회 GET 9종 외에는 보내기 전에 차단). `local` 전용 가짜 토스 서버 `/__fake-toss/**` | MVP |
-| `credential` | 증권사 키 봉투 암호화(`broker_credential`: 비밀마다 AES-256-GCM 데이터키, 데이터키는 `MasterKeyProvider`로 감쌈 — 지금은 env `UPLOG_MASTER_KEY`, KMS는 자리만), `CredentialReader`·`CredentialStore` 구현, 해제 시 즉시 파기 | MVP |
+| `local-user` | 로컬 엔진 보안: 실행 토큰 → `uplog_desktop` 쿠키(`/__launch`), `/api/**` 쿠키 검사(403 `DESKTOP_LOCKED`), `Host` 검사(DNS 리바인딩), 같은 출처 `Origin` 검사, `/__health`. 로그인 없음: 로컬 사용자 한 명(`app_user`, 첫 실행 때 생성), `CurrentUser` | MVP |
+| `broker-toss` | `BrokerPort`·`BrokerVerifier`의 토스 구현(`TossBrokerAdapter`): clientId별 토큰 캐시(401 `token-revoked`면 한 번만 재발급), 그룹별 토큰 버킷 레이트리밋(`X-RateLimit-Remaining`이 낮으면 늦춤, 429는 `Retry-After`), 5xx 백오프, 나가는 요청 허용 목록(토큰 발급 + 조회 GET 9종 외에는 보내기 전에 차단). `fake-toss` 프로필의 가짜 토스 서버 `/__fake-toss/**` | MVP |
+| `credential` | 증권사 키 봉투 암호화(`broker_credential`: 비밀마다 AES-256-GCM 데이터키, 데이터키는 `MasterKeyProvider`로 감쌈 — 마스터키는 macOS 키체인(`security`, 서비스 `uplog`·계정 `master-key`), 키체인이 없으면 data-dir의 키 파일(600)), `CredentialReader`·`CredentialStore` 구현, 해제 시 즉시 파기 | MVP |
 | `market-data` | 공용 시세(instrument·daily_price·fx_rate). 기능 A 실제 종목: 시장별 종목 목록 동기화(하루 1회), 요청 구간 일봉 백필(확인 구간 `price_coverage` 밖만), 매수일 환율 백필. 시세 소스는 `MarketFeed` 포트(요청자 키로 만든 것, 구현은 ingest의 `BrokerMarketFeed`) | MVP |
-| `ingest` | 작업 큐(`ingest_job`, `FOR UPDATE SKIP LOCKED`, 지수 백오프 3회 → 실패 시 `collection_gap`), 역산(체결 전부·일봉·환율, 역산 구간 최소 입금 추정), 일일 수집(07:00 KST: 새 체결·보유·현금 스냅샷, 현금흐름 추정 `INFERRED`, 보유 대사), `IngestScheduler`·`AccountDataPurger` 구현 | MVP |
+| `ingest` | 작업 큐(`ingest_job`, `FOR UPDATE SKIP LOCKED`, 지수 백오프 3회 → 실패 시 `collection_gap`), 역산(체결 전부·일봉·환율, 역산 구간 최소 입금 추정), 일일 수집(07:00 KST: 새 체결·보유·현금 스냅샷, 현금흐름 추정 `INFERRED`, 보유 대사), 엔진 시작·30분마다 놓친 날 따라잡기, 한가할 때 폴링 늦춤, `IngestScheduler`·`AccountDataPurger` 구현 | MVP |
 | `simulation` | 기능 A API, 파라미터 해시 캐시 | MVP |
-| `portfolio` (계획상 `portfolio-view`) | 기능 B API(로그·보유·일자 상세·인사이트), 원시 테이블, `BrokerPort`, 로컬 데모 계좌, 요청자 → 계좌 해석(비로그인 = 데모), 연결 API(`/api/me`, `/api/connections/toss/**`)와 모듈 사이 계약(`connect` 패키지). 계산은 `calc-engine`의 `com.uplog.calc.portfolio` | MVP |
+| `portfolio` (계획상 `portfolio-view`) | 기능 B API(로그·보유·일자 상세·인사이트), 원시 테이블, `BrokerPort`, 데모 계좌, 요청자 → 계좌 해석(토스 연결 전 = 데모), 연결 API(`/api/me`, `/api/connections/toss/**`), 이 맥의 공인 IP 확인(`/api/desktop/public-ip`)와 모듈 사이 계약(`connect` 패키지). 계산은 `calc-engine`의 `com.uplog.calc.portfolio` | MVP |
 | `share` | 공유 카드 이미지(SVG → PNG), 공유 링크 | MVP |
 | `insight` | 기능 C(기여도, 드로다운, 환율 분리, 습관 등) | 2 |
 | `notify` | 주간 리캡, 의미 있는 순간 알림 | 2 |
-| `app` | Spring Boot 진입점, 프로필 `api` / `batch` | MVP |
+| `app` | Spring Boot 진입점(프로필 `desktop` / `fake-toss`), `uplog.desktop.web-dir`의 web 정적 export 서빙 | MVP |
 
 기능 A(시뮬레이션)와 기능 B(내 계좌)는 같은 `calc-engine`을 쓴다. 적립식 시뮬레이션은 "가상의 현금흐름을 벤치마크에 리플레이"한 것이고, 벤치마크 비교는 "내 실제 현금흐름을 리플레이"한 것이다.
 
-모듈은 구현할 때 하나씩 추가한다. 현재 저장소에는 `core`, `calc-engine`, `market-data`, `simulation`, `portfolio`, `user-auth`, `credential`, `broker-toss`, `ingest`, `app`(백엔드)과 `web`(Next.js 프론트엔드)이 있다.
-토스 Open API는 공개 명세(1.2.24)로 구현했고 실제 키로는 아직 호출해 보지 않았다(docs/toss-openapi-notes.md). `local`은 같은 앱의 가짜 토스 서버로 연결 → 역산 → 로그까지 돈다.
+모듈은 구현할 때 하나씩 추가한다. 현재 저장소에는 `core`, `calc-engine`, `market-data`, `simulation`, `portfolio`, `local-user`, `credential`, `broker-toss`, `ingest`, `app`(로컬 엔진)과 `web`(Next.js 정적 export 화면)이 있다.
+토스 Open API는 공개 명세(1.2.24)로 구현했고 실제 키로는 아직 호출해 보지 않았다(docs/toss-openapi-notes.md). `fake-toss` 프로필은 같은 엔진의 가짜 토스 서버로 연결 → 역산 → 로그까지 돈다.
 일별 계좌 값은 체결·입출금·배당을 시세에 리플레이(`PortfolioReplay`)해 만들고, 이 함수가 그대로 가입 전 기간 역산(backfill)이 된다.
-Flyway 버전은 모듈별 구간을 쓴다: `market-data` V1–V99, `portfolio` V100–V199, `user-auth` V200–V299, `credential` V300–V399, `ingest` V400–V499(`out-of-order` 켬).
-로그인·계좌 연결 설계는 [design/account-connection.md](design/account-connection.md).
+Flyway 버전은 모듈별 구간을 쓴다: `market-data` V1–V99, `portfolio` V100–V199, `local-user` V200–V299, `credential` V300–V399, `ingest` V400–V499(`out-of-order` 켬).
+계좌 연결 설계는 [design/account-connection.md](design/account-connection.md), 맥 앱 설계는 [design/desktop-app.md](design/desktop-app.md).
 
 ## 3. 데이터 모델
 
@@ -78,7 +78,7 @@ Flyway 버전은 모듈별 구간을 쓴다: `market-data` V1–V99, `portfolio`
 2. **큐**: `ingest_job` 테이블 + `SELECT … FOR UPDATE SKIP LOCKED`. Spring Batch는 잡 이력·재시작 관리용으로만 쓴다.
 3. **레이트리밋**: API 그룹별 토큰 버킷(Bucket4j). 워커 1대일 땐 인메모리, 늘릴 때 Redis로 옮긴다.
 4. **수집 → 계산**: 유저 한 명의 수집이 끝나면 즉시 그 유저의 `daily_metric`을 갱신한다. 지수 백오프로 재시도하고, 3회 실패하면 `missing`으로 표시해 로그에 빈 칸으로 보여준다.
-5. **고정 IP**: 워커는 NAT 게이트웨이 뒤에 둔다. API 서버는 토스를 호출하지 않는다.
+5. **IP**: 토스는 허용 IP에서 온 요청만 받는다. 맥 앱은 사용자의 맥에서 토스를 부르므로, 사용자가 이 맥의 공인 IP를 WTS에 등록한다(바뀌면 다시 등록).
 
 ## 5. 계산 규칙 (`calc-engine`)
 
@@ -94,7 +94,7 @@ Flyway 버전은 모듈별 구간을 쓴다: `market-data` V1–V99, `portfolio`
 ## 6. 기능 A (시뮬레이션)
 
 - `GET /api/simulations?etfs=…&period=1Y&frequency=WEEKLY&dayOfWeek=MONDAY&amountType=PER_PURCHASE&amount=…` (계약: [docs/api/simulation.md](api/simulation.md))
-- 실제 종목(국내·미국 ETF·주식)만. 시세는 **요청자 자신이 연결한 토스 키로만** 받고, 비로그인·미연결은 403 `SIMULATION_REQUIRES_CONNECTION`. 미국 종목은 그날 USD/KRW로 원화 환산.
+- 실제 종목(국내·미국 ETF·주식)만. 시세는 **요청자 자신이 연결한 토스 키로만** 받고, 미연결은 403 `SIMULATION_REQUIRES_CONNECTION`. 미국 종목은 그날 USD/KRW로 원화 환산.
 - 3년 × 약 250거래일 × 최대 3개 종목이라서 요청 시 계산한다. 정규화한 파라미터 해시로 캐시한다.
 - 공유 링크에는 결과가 아니라 파라미터를 담고, 열 때 다시 계산한다.
 - 랭킹·추천 엔드포인트는 두지 않는다(규제 리스크).
@@ -102,14 +102,15 @@ Flyway 버전은 모듈별 구간을 쓴다: `market-data` V1–V99, `portfolio`
 ## 7. API
 
 ```
-POST   /api/auth/{provider}              로그인
+GET    /api/me                           로컬 사용자와 연결 상태
+GET    /api/desktop/public-ip            이 맥의 공인 IP(누를 때만 ipify 호출)
 POST   /api/connections/toss             키 등록(검증 호출 1회 → 암호화 저장)
 DELETE /api/connections/toss             해제 + 키 즉시 파기
 GET    /api/portfolio/log?from&to        로그 (daily_metric)
 GET    /api/portfolio/days/{date}        그날 종목별 기여 + 체결
 GET    /api/portfolio/series?metric=value|twr&benchmark=SPX
 GET    /api/portfolio/summary            TWR, 실현/미실현, 요일 패턴
-GET    /api/simulations                  기능 A (비로그인)
+GET    /api/simulations                  기능 A (토스 연결 필요)
 POST   /api/shares  /  GET /s/{id}       공유 카드
 ```
 

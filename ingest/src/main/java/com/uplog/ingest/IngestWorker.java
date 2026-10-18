@@ -16,6 +16,9 @@ import org.springframework.scheduling.annotation.Scheduled;
  * 큐 워커. 돌릴 때가 된 작업을 하나씩 집어 실행한다. 실패하면 지수 백오프(backoff × 2^(n−1))로 다시 대기시키고,
  * maxAttempts번 실패하거나 다시 해도 소용없는 실패(IP 미등록, 키 무효, 연결 해제)면 FAILED로 둔다.
  * 일일 작업이 끝내 실패하면 그 기준일을 collection_gap에 남겨 로그에 빈 칸으로 보이게 하고, 다음 날 작업은 그대로 돈다.
+ *
+ * <p>맥에서 늘 돌므로 한가할 때는 DB를 덜 본다: 마지막 폴링에 일이 없었으면 {@code idle-poll-interval}(기본 30초)마다 보고,
+ * 이 엔진이 작업을 넣으면({@link QueueSignal}) 다음 틱에 바로 본다.
  */
 public class IngestWorker {
 
@@ -28,10 +31,18 @@ public class IngestWorker {
     private final IngestProperties properties;
     private final Clock clock;
     private final String workerId;
+    private final QueueSignal signal;
+    private volatile Instant idleUntil = Instant.MIN;
 
     public IngestWorker(
             IngestJobRepository jobs, JobHandler handler, IngestStore store, PortfolioService portfolioService,
             IngestProperties properties, Clock clock, String workerId) {
+        this(jobs, handler, store, portfolioService, properties, clock, workerId, new QueueSignal());
+    }
+
+    public IngestWorker(
+            IngestJobRepository jobs, JobHandler handler, IngestStore store, PortfolioService portfolioService,
+            IngestProperties properties, Clock clock, String workerId, QueueSignal signal) {
         this.jobs = jobs;
         this.handler = handler;
         this.store = store;
@@ -39,6 +50,7 @@ public class IngestWorker {
         this.properties = properties;
         this.clock = clock;
         this.workerId = workerId;
+        this.signal = signal;
     }
 
     public static String defaultWorkerId() {
@@ -53,9 +65,14 @@ public class IngestWorker {
 
     @Scheduled(fixedDelayString = "${uplog.ingest.poll-interval:2s}", initialDelayString = "${uplog.ingest.poll-interval:2s}")
     public void poll() {
-        if (properties.workerEnabled()) {
-            drain();
+        if (!properties.workerEnabled()) {
+            return;
         }
+        Instant now = clock.instant();
+        if (!signal.consume() && now.isBefore(idleUntil)) {
+            return;
+        }
+        idleUntil = drain() == 0 ? now.plus(properties.idlePollInterval()) : Instant.MIN;
     }
 
     /** 지금 돌릴 수 있는 작업이 없을 때까지 돌린다. @return 실행한 작업 수 */

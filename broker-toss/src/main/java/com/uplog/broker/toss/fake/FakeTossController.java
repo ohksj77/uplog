@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 가짜 토스 서버(로컬 개발·테스트용). 실제 명세(1.2.24)와 같은 경로·필드 이름·형식(숫자는 문자열, 성공은 {@code result} envelope,
- * 토큰은 OAuth2 형식)으로 결정적 데이터를 준다. {@code uplog.toss.fake-server.enabled=true}일 때만 뜬다(local 프로필).
+ * 토큰은 OAuth2 형식)으로 결정적 데이터를 준다. {@code uplog.toss.fake-server.enabled=true}일 때만 뜬다(fake-toss 프로필).
  *
  * <ul>
  *   <li>{@code client_secret=invalid} → 401 invalid_client("...: client_secret"), {@code client_id}가 {@code bad-id}로 시작 → ("...: client_id")

@@ -24,7 +24,7 @@ class IngestWorkerTest {
     private final long account = db.insertAccount("1");
     private final MutableClock clock = new MutableClock(Instant.parse("2026-10-16T22:00:00Z"));
     private final IngestProperties properties =
-            new IngestProperties(false, Duration.ofSeconds(2), 3, Duration.ofMinutes(1), Duration.ofMinutes(30), 60, true);
+            new IngestProperties(false, Duration.ofSeconds(2), Duration.ofSeconds(30), 3, Duration.ofMinutes(1), Duration.ofMinutes(30), 60, true);
     private final IngestSchedulerService scheduler = new IngestSchedulerService(jobs, store, clock);
 
     private IngestWorker worker(JobHandler handler) {

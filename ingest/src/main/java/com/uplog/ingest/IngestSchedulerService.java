@@ -15,21 +15,29 @@ public class IngestSchedulerService implements IngestScheduler {
     private final IngestJobRepository jobs;
     private final IngestStore store;
     private final Clock clock;
+    private final QueueSignal signal;
 
     public IngestSchedulerService(IngestJobRepository jobs, IngestStore store, Clock clock) {
+        this(jobs, store, clock, new QueueSignal());
+    }
+
+    public IngestSchedulerService(IngestJobRepository jobs, IngestStore store, Clock clock, QueueSignal signal) {
         this.jobs = jobs;
         this.store = store;
         this.clock = clock;
+        this.signal = signal;
     }
 
     @Override
     public void scheduleBackfill(long accountId) {
         jobs.enqueue(accountId, IngestJob.Kind.BACKFILL, null, clock.instant());
+        signal.wake();
     }
 
     @Override
     public void scheduleDailySync(long accountId, LocalDate asOf) {
         jobs.enqueue(accountId, IngestJob.Kind.DAILY, asOf, clock.instant());
+        signal.wake();
     }
 
     /**

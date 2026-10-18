@@ -1,4 +1,4 @@
-# 로컬 PostgreSQL(운영과 같은 DB). 아직 필수는 아니다 — Docker 없이 쓰려면 local 프로필(H2)을 쓴다.
+# 로컬 PostgreSQL(서버 시절 운영 DB, 나중을 위해 남겨 둔다). 맥 앱 엔진(desktop 프로필)은 쓰지 않는다(H2 파일 DB).
 # docker compose up -d 후: ./gradlew :app:bootRun  (기본 프로필 api, application.yml의 기본 접속 정보와 같다)
 services:
   postgres:

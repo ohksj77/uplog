@@ -10,7 +10,7 @@ public final class IngestErrors {
     public static final String KEY_IN_USE_ELSEWHERE =
             "다른 곳에서 같은 키를 사용 중이에요. 토스증권 Open API 키를 이 서비스에서만 쓰거나, 새 키를 발급받아 다시 연결해 주세요.";
     public static final String IP_NOT_ALLOWED =
-            "토스증권이 우리 서버 IP를 허용하지 않았어요. 토스증권 WTS > 설정 > Open API > 허용 IP 관리에 연결 화면의 IP를 등록해 주세요.";
+            "토스증권이 이 맥의 공인 IP를 허용하지 않았어요. 공유기나 인터넷 회사가 IP를 바꿨을 수 있어요. 연결 설정에서 내 공인 IP를 확인해 토스증권 WTS > 설정 > Open API > 허용 IP 관리에 추가해 주세요.";
 
     private IngestErrors() {}
 

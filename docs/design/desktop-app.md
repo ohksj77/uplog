@@ -72,7 +72,9 @@ runtime/bin/java -jar engine.jar \
 - 모든 요청: `Host`가 `127.0.0.1:{port}`·`localhost:{port}`가 아니면 403. 상태를 바꾸는 요청은 Origin이 같은 출처여야 한다.
 - 로컬 사용자: 첫 실행 때 하나 만들고, 쿠키가 맞는 요청은 모두 그 사용자다(`CurrentUser`).
 - 키체인: 마스터키를 `security find-generic-password -s uplog -a master-key -w`로 읽고, 없으면 만들어 `add-generic-password`로 넣는다.
-- `GET /api/desktop/public-ip` → `{"ip":"1.2.3.4"}`: 사용자가 누를 때만 api.ipify.org를 부른다. 연결 화면 IP 단계가 쓴다.
+- `GET /api/desktop/public-ip` → `{"ip":"1.2.3.4"}`: 사용자가 누를 때만 api.ipify.org를 부른다(최대 1분 기억, 실패는 502 `PUBLIC_IP_UNAVAILABLE`). 연결 화면 IP 단계가 쓴다. `GET /api/connections/toss/setup`과 `TOSS_IP_NOT_ALLOWED` 오류 본문은 `egressIps` 대신 `publicIpCheck: "/api/desktop/public-ip"`를 준다.
+- 그 밖의 요청 규칙: Host가 틀리면 403 `HOST_NOT_ALLOWED`, 다른 출처의 상태 변경은 403 `ORIGIN_NOT_ALLOWED`. 실행 토큰은 32자 이상이어야 하고(짧으면 시작하지 않음), `server.address`가 127.0.0.1이 아니면 시작하지 않는다. 정적 화면의 `_next/static/**`은 1년 캐시(immutable), 나머지는 `no-cache`, `.txt`(RSC 페이로드)는 `text/plain; charset=utf-8`.
+- 수집: 매일 07:00(KST) 직전 거래일, 그리고 엔진이 뜰 때·30분마다 놓친 날 따라잡기(가장 최근 거래일 하나로, [account-connection.md](account-connection.md) "수집 규칙"). 큐는 한가하면 30초마다 본다.
 - 개발: `--uplog.desktop.dev-open=true`면 토큰·Host 검사를 끄고(127.0.0.1 바인딩은 유지) `next dev`가 `/api`를 엔진으로 넘긴다.
 - 테스트용 가짜 토스: `--spring.profiles.active=desktop,fake-toss`.
 

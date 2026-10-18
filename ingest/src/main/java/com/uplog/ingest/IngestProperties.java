@@ -7,8 +7,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 /**
  * {@code uplog.ingest.*}.
  *
- * @param workerEnabled 이 인스턴스가 큐를 폴링해 작업을 돌릴지
- * @param pollInterval 큐 폴링 간격
+ * @param workerEnabled 이 엔진이 큐를 폴링해 작업을 돌릴지
+ * @param pollInterval 일이 있을 때의 큐 폴링 간격
+ * @param idlePollInterval 한가할 때(마지막 폴링에 일이 없었을 때) 큐를 다시 볼 간격. 이 엔진이 작업을 넣으면 바로 깬다
  * @param maxAttempts 이만큼 실패하면 FAILED(일일 작업은 collection_gap 기록)
  * @param backoff 재시도 간격의 기준. n번째 실패 뒤 backoff × 2^(n−1)
  * @param lockTimeout RUNNING인 채 이보다 오래된 작업은 워커가 죽은 것으로 보고 다시 집는다
@@ -19,6 +20,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 public record IngestProperties(
         @DefaultValue("true") boolean workerEnabled,
         @DefaultValue("2s") Duration pollInterval,
+        @DefaultValue("30s") Duration idlePollInterval,
         @DefaultValue("3") int maxAttempts,
         @DefaultValue("1m") Duration backoff,
         @DefaultValue("30m") Duration lockTimeout,
@@ -26,6 +28,6 @@ public record IngestProperties(
         @DefaultValue("true") boolean inferBackfillDeposits) {
 
     public static IngestProperties defaults() {
-        return new IngestProperties(true, Duration.ofSeconds(2), 3, Duration.ofMinutes(1), Duration.ofMinutes(30), 60, true);
+        return new IngestProperties(true, Duration.ofSeconds(2), Duration.ofSeconds(30), 3, Duration.ofMinutes(1), Duration.ofMinutes(30), 60, true);
     }
 }

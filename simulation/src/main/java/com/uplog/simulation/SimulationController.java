@@ -1,6 +1,6 @@
 package com.uplog.simulation;
 
-import com.uplog.auth.CurrentUser;
+import com.uplog.localuser.CurrentUser;
 import com.uplog.marketdata.feed.MarketFeed;
 import com.uplog.marketdata.feed.MarketFeeds;
 import com.uplog.simulation.api.EtfResponse;

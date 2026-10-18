@@ -1,0 +1,12 @@
+# 테스트에서 desktop 프로필을 덮는다(테스트 클래스패스에만 있다): 컨텍스트마다 새 메모리 DB, 임시 data-dir,
+# 실제 키체인 대신 키 파일, 개발용 dev-open(보안 검사 테스트는 끄고 토큰을 넣는다).
+spring:
+  datasource:
+    url: jdbc:h2:mem:uplog-${random.uuid};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+
+uplog:
+  desktop:
+    data-dir: ${java.io.tmpdir}/uplog-engine-test
+    dev-open: true
+  credential:
+    key-store: file
